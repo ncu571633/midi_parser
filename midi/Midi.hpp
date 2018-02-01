@@ -71,28 +71,17 @@ typedef struct MidiEventNode
 	int	cc;
 }MidiEventNode;
 
-class HeaderChunk
+typedef struct HeaderChunk
 {
-    public:
         std::string chunkID;
         DWORD   chunkSize;	//length: 6
         DWORD   format;		//format: 0, 1, 2
         DWORD   tracksNumber;
         DWORD	deltaTimeTicks;
+}HeaderChunk;
 
-        HeaderChunk()
-        {
-            chunkID = std::string("MThd");
-            chunkSize = 6;
-            format = 0;
-            tracksNumber = 0;
-            deltaTimeTicks = 0;
-        }
-};
-
-class TrackChunk
+typedef struct TrackChunk
 {
-    public:
         string chunkID;
         DWORD	chunkSize;
         //	int	index;
@@ -103,19 +92,15 @@ class TrackChunk
         // int	noteVelocity;		    //velocity of pressing note, normally it is the volume of the note
         // int	channelNumber;
         std::vector<MidiEventNode> MidiEvents;
-
-        TrackChunk()
-        {
-            chunkID = std::string("MTrk");
-            chunkSize = 0;
-        }
-}TrackChunk;
+};
 
 class MidiFile
 {
     private:
-        HeaderChunk MHeader;         	        //header chunk
-        std::vector<TrackChunk> TrackChunks;	//track chunk list 
+        HeaderChunk headerChunk;      	        //header chunk
+        std::vector<TrackChunk> trackChunks;	//track chunk list
+
+        void importHeaderChunk(std::oftream midifp);
     public:
         void importMidiFile(string file);
         void exportMidiFile(string file);
