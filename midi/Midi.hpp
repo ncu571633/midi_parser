@@ -6,12 +6,6 @@
 
 //#define NOTEVELOCITY 0x50	//notes velocity
 
-//parse midi in verbose mode: print all the information during parsing 
-//#define parseverbose 0 
-
-typedef unsigned short WORD; //length: 2
-typedef unsigned long DWORD; //length: 4
-
 /********************************************/
 /*******Midi Structure	*********************/
 /********************************************/
@@ -20,91 +14,87 @@ typedef unsigned long DWORD; //length: 4
 //		HeadChunk
 //		TrackChunk
 //			MetaEvent
-//  			MetaEventNode
 //			MidiEvent
-//  			MidiEventNode
 
-typedef struct MetaEvent
+typedef struct Event
 {
-    int	SequenceNumber;	//00
-    std::string TextEvent;	//01
-    std::string CopyRight;	//02
-    std::string TrackName;	//03
-    std::string InstrumentName;//04
-    std::string Lyric;		//05
-    std::string Marker;		//06
-    std::string CuePoint;		//07
-    int	tempo;			//51: microseconds/quarter note
-    //51: microseconds/quarter note(unit: ms)
-    //duration time per quarter note
-    //convert s to ms in setTempo function in writeMetaEvent.c
-    //0.5*10^6 ms, 0.5s, 0x7a120
-    int	hour;			//54: SMPTE
-    int	minute;
-    int	second;
-    int	frame;
-    int	subframe;
-    int	numer;			//58
-    int	denom;			//key: 4/4, C major
-    int	metro;
-    int nds;
-    int	sf;				//59: 	sharps/ flats
-    int mi;				//		major/ minor
+    int baseType = 0;   // meta or midi
+    unsigned char type = 0;
+    int deltaTime = 0;
+    int size = 0;
+    int v1 = 0; 
+    int v2 = 0; 
+    std::string content;
+}Event;
+
+typedef struct MetaEvent: public Event
+{
+    int v3 = 0; 
+    int v4 = 0; 
+    int v5 = 0; 
 }MetaEvent;
 
-typedef struct MetaEventNode
+struct MidiEvent: public Event
 {
-    int type;
-    int	len;	//length of byte
-    char *cContent;
-    int iContent1; 
-    int iContent2; 
-    int iContent3; 
-    int iContent4; 
-}MetaEventNode;
-
-typedef struct MidiEventNode
-{
-    int	deltaTime;
-    int	MidiType;
-    int	nn;
-    int	cc;
-}MidiEventNode;
+    int	nn = 0;
+    int	cc = 0;
+    // int	deltaTime;
+};
 
 typedef struct HeaderChunk
 {
     std::string chunkID;
-    DWORD   chunkSize;	//length: 6
-    DWORD   format;		//format: 0, 1, 2
-    DWORD   tracksNumber;
-    DWORD	deltaTimeTicks;
+    size_t chunkSize = 0;	//length: 6
+    size_t format = 0;		//format: 0, 1, 2
+    size_t tracksNumber = 0;
+    size_t deltaTimeTicks = 0;
 }HeaderChunk;
 
 typedef struct TrackChunk
 {
-    std::string chunkID;
-    DWORD	chunkSize;
-    //	int	index;
+    ~TrackChunk()
+    {
+        for(Event* event: Events)
+        {
+            delete event;
+        }
+    }
 
-    MetaEvent metaEvent;
+    std::string chunkID;
+    size_t chunkSize = 0;
+    //	int	index;
 
     //Midi event
     // int	noteVelocity;		    //velocity of pressing note, normally it is the volume of the note
     // int	channelNumber;
-    std::vector<MidiEventNode> MidiEvents;
+    std::vector<Event*> Events;
 }TrackChunk;
 
 class MidiFile
 {
     private:
+        ~MidiFile();
+
         HeaderChunk headerChunk;      	        //header chunk
         std::vector<TrackChunk> trackChunks;	//track chunk list
 
+        //get a fixed length(bits) word.
+        int getNBitsNumber(const std::string &midistr, size_t& offset, int bits);
+        //get a variable length word.
+        size_t getDWord(const std::string &midistr, size_t& offset);
+        //get content
+        std::string getDWordContent(const std::string &midistr, size_t& offset, int type);
+        
+        MetaEvent* importMetaEvent(const std::string& midistr, size_t& offset);
+        MidiEvent* importMidiEvent(const std::string& midistr, size_t& offset, int head);
+        Event* importEvent(const std::string& midistr, size_t& offset);
+
         void importHeaderChunk(const std::string& midistr, size_t& offset);
-        void importTrackChunks(const std::string& midistr, int& time, size_t& offset);
+        void importTrackChunks(const std::string& midistr, size_t& offset, int& time);
     public:
         void importMidiFile(const std::string& fileName);
         void exportMidiFile(const std::string& fileName);
+        void exportXMLFile(const std::string& fileName);
 };
 
 #endif

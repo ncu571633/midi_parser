@@ -5,7 +5,7 @@ PICDIR = ./pic/
 CC = g++
 LIBS = 
 
-CPPFLAGS = -Wall -g3
+CPPFLAGS = -Wall -g3 -std=c++11
 
 ########################################################
 objects = Midi.o
