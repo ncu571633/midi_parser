@@ -18,10 +18,10 @@
 
 typedef struct Event
 {
-    int baseType = 0;   // meta or midi
+    unsigned char baseType = 0;   // meta or midi
     unsigned char type = 0;
     int deltaTime = 0;
-    int size = 0;
+    size_t size = 0;
     int v1 = 0; 
     int v2 = 0; 
     std::string content;
@@ -52,21 +52,9 @@ typedef struct HeaderChunk
 
 typedef struct TrackChunk
 {
-    ~TrackChunk()
-    {
-        for(Event* event: Events)
-        {
-            delete event;
-        }
-    }
-
+    ~TrackChunk();
     std::string chunkID;
     size_t chunkSize = 0;
-    //	int	index;
-
-    //Midi event
-    // int	noteVelocity;		    //velocity of pressing note, normally it is the volume of the note
-    // int	channelNumber;
     std::vector<Event*> Events;
 }TrackChunk;
 
@@ -76,7 +64,7 @@ class MidiFile
         ~MidiFile();
 
         HeaderChunk headerChunk;      	        //header chunk
-        std::vector<TrackChunk> trackChunks;	//track chunk list
+        std::vector<TrackChunk*> trackChunks;	//track chunk list
 
         //get a fixed length(bits) word.
         int getNBitsNumber(const std::string &midistr, size_t& offset, int bits);
@@ -86,11 +74,11 @@ class MidiFile
         std::string getDWordContent(const std::string &midistr, size_t& offset, int type);
         
         MetaEvent* importMetaEvent(const std::string& midistr, size_t& offset);
-        MidiEvent* importMidiEvent(const std::string& midistr, size_t& offset, int head);
+        MidiEvent* importMidiEvent(const std::string& midistr, size_t& offset, unsigned char head);
         Event* importEvent(const std::string& midistr, size_t& offset);
 
         void importHeaderChunk(const std::string& midistr, size_t& offset);
-        void importTrackChunks(const std::string& midistr, size_t& offset, int& time);
+        void importTrackChunks(const std::string& midistr, size_t& offset);
     public:
         void importMidiFile(const std::string& fileName);
         void exportMidiFile(const std::string& fileName);
