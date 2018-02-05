@@ -1,4 +1,4 @@
-# Midi C++ Parser/API
+# C++ Midi Parser/API
 
 1. Import midi file into internal data structure;
 2. Export Internal data structure to XML file;
