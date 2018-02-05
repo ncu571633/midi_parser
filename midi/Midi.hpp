@@ -4,82 +4,119 @@
 #include <vector>
 #include <string>
 
-//#define NOTEVELOCITY 0x50	//notes velocity
-
 /********************************************/
-/*******Midi Structure	*********************/
+/*******Midi Utility    *********************/
 /********************************************/
-//
-//	MidiFile
-//		HeadChunk
-//		TrackChunk
-//			MetaEvent
-//			MidiEvent
-
-typedef struct Event
+class MidiUtility
 {
-    unsigned char baseType = 0;   // meta or midi
-    unsigned char type = 0;
-    int deltaTime = 0;
-    size_t size = 0;
-    int v1 = 0; 
-    int v2 = 0; 
-    std::string content;
-}Event;
-
-typedef struct MetaEvent: public Event
-{
-    int v3 = 0; 
-    int v4 = 0; 
-    int v5 = 0; 
-}MetaEvent;
-
-struct MidiEvent: public Event
-{
-    int	nn = 0;
-    int	cc = 0;
-    // int	deltaTime;
+    public:
+        //get a fixed length(bits) word.
+        static int getNBitsNumber(const std::string &midistr, size_t& offset, int bits);
+        //return 0xFFFF (2*bits)
+        static size_t writeNBitsNumberHelper(int bits);
+        static void writeNBitsNumber(std::string &midistr, size_t value, int bits);
+        //get a variable length word.
+        static size_t getDWord(const std::string &midistr, size_t& offset);
+        static void writeDWord(std::string &midistr, size_t value);
+        //get string 
+        static std::string getString(const std::string &midistr, size_t& offset, int type);
+        //write string
+        static void writeString(std::string &midistr, const std::string& str);
 };
 
-typedef struct HeaderChunk
-{
-    std::string chunkID;
-    size_t chunkSize = 0;	//length: 6
-    size_t format = 0;		//format: 0, 1, 2
-    size_t tracksNumber = 0;
-    size_t deltaTimeTicks = 0;
-}HeaderChunk;
+/********************************************/
+/*******Midi Structure  *********************/
+/********************************************/
+//
+//  MidiFile
+//      HeadChunk
+//      TrackChunk
+//          MetaEvent
+//          MidiEvent
 
-typedef struct TrackChunk
+class Event
 {
-    ~TrackChunk();
-    std::string chunkID;
-    size_t chunkSize = 0;
-    std::vector<Event*> Events;
-}TrackChunk;
+    protected:
+        unsigned char baseType = 0;   // meta or midi
+        unsigned char type = 0;
+        size_t deltaTime = 0;
+        size_t size = 0;
+        int v1 = 0; 
+        int v2 = 0; 
+        std::string content;
+    public:
+        Event() {}
+        virtual ~Event() {}
+        inline size_t getSize() { return size; }
+        inline void setDeltaTime(size_t d) { deltaTime = d; }
+        
+        virtual void importEvent(const std::string& midistr, size_t& offset) {}
+};
+
+class MetaEvent: public Event
+{
+    private:
+        int v3 = 0; 
+        int v4 = 0; 
+        int v5 = 0; 
+    public:
+        MetaEvent() {}
+        ~MetaEvent() {}
+        void importEvent(const std::string& midistr, size_t& offset);
+};
+
+class MidiEvent: public Event
+{
+    public:
+        MidiEvent() {}
+        ~MidiEvent() {}
+        void importEvent(const std::string& midistr, size_t& offset);
+};
+
+class SysexEvent: public Event
+{
+    public:
+        SysexEvent() {}
+        ~SysexEvent() {}
+        void importEvent(const std::string& midistr, size_t& offset);
+};
+
+class HeaderChunk
+{
+    private:
+        std::string chunkID;
+        size_t chunkSize = 0;   //length: 6
+        size_t format = 0;      //format: 0, 1, 2
+        size_t tracksNumber = 0;
+        size_t deltaTimeTicks = 0;
+    public:
+        size_t getTracksNumber() { return tracksNumber; }
+        void importChunk(const std::string& midistr, size_t& offset);
+        void exportChunk(std::string& midistr);
+};
+
+class TrackChunk
+{
+    private:
+        std::string chunkID;
+        size_t chunkSize = 0;
+        std::vector<Event*> Events;
+    public:
+        ~TrackChunk();
+        Event* importEvent(const std::string& midistr, size_t& offset);
+        void importChunk(const std::string& midistr, size_t& offset);
+        void exportChunk(std::string& midistr);
+};
 
 class MidiFile
 {
     private:
-        ~MidiFile();
-
-        HeaderChunk headerChunk;      	        //header chunk
-        std::vector<TrackChunk*> trackChunks;	//track chunk list
-
-        //get a fixed length(bits) word.
-        int getNBitsNumber(const std::string &midistr, size_t& offset, int bits);
-        //get a variable length word.
-        size_t getDWord(const std::string &midistr, size_t& offset);
-        //get content
-        std::string getDWordContent(const std::string &midistr, size_t& offset, int type);
+        HeaderChunk headerChunk;                //header chunk
+        std::vector<TrackChunk*> trackChunks;   //track chunk list
         
-        MetaEvent* importMetaEvent(const std::string& midistr, size_t& offset);
-        MidiEvent* importMidiEvent(const std::string& midistr, size_t& offset, unsigned char head);
-        Event* importEvent(const std::string& midistr, size_t& offset);
-
-        void importHeaderChunk(const std::string& midistr, size_t& offset);
-        void importTrackChunks(const std::string& midistr, size_t& offset);
     public:
+        ~MidiFile();
+        
         void importMidiFile(const std::string& fileName);
         void exportMidiFile(const std::string& fileName);
         void exportXMLFile(const std::string& fileName);
