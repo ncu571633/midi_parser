@@ -41,8 +41,8 @@ class Event
         unsigned char type = 0;
         size_t deltaTime = 0;
         size_t size = 0;
-        int v1 = 0; 
-        int v2 = 0; 
+        int v1 = -1; 
+        int v2 = -1; 
         std::string content;
     public:
         Event() {}
@@ -51,18 +51,20 @@ class Event
         inline void setDeltaTime(size_t d) { deltaTime = d; }
         
         virtual void importEvent(const std::string& midistr, size_t& offset) {}
+        virtual void exportEvent(std::string& midistr) {}
 };
 
 class MetaEvent: public Event
 {
     private:
-        int v3 = 0; 
-        int v4 = 0; 
-        int v5 = 0; 
+        int v3 = -1; 
+        int v4 = -1; 
+        int v5 = -1; 
     public:
         MetaEvent() {}
         ~MetaEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
+        void exportEvent(std::string& midistr);
 };
 
 class MidiEvent: public Event
@@ -71,6 +73,7 @@ class MidiEvent: public Event
         MidiEvent() {}
         ~MidiEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
+        void exportEvent(std::string& midistr);
 };
 
 class SysexEvent: public Event
@@ -79,6 +82,7 @@ class SysexEvent: public Event
         SysexEvent() {}
         ~SysexEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
+        void exportEvent(std::string& midistr) {}
 };
 
 class HeaderChunk

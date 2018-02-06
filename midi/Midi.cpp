@@ -189,6 +189,47 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
     std::cerr << "MetaEvent wrong size of " << type << size;
 }
 
+void MetaEvent::exportEvent(std::string& midistr)
+{
+    MidiUtility::writeDWord(midistr, 0); 	//delta time = 0
+    MidiUtility::writeNBitsNumber(midistr, 0xff, 1);
+    MidiUtility::writeNBitsNumber(midistr, type, 1);
+    
+    // Special case: type 0x51 tempo
+    if (type == 51) {
+        MidiUtility::writeNBitsNumber(midistr, 3, 1);
+        MidiUtility::writeNBitsNumber(midistr, v1, 3);
+        return ;
+    }
+
+    // string
+    std::string str;
+    
+    if(!content.empty()) 
+    {
+        str = content;
+    } else {
+        if(v1!=-1) {
+            MidiUtility::writeNBitsNumber(str, v1, 1);
+        }
+        if(v2!=-1) {
+            MidiUtility::writeNBitsNumber(str, v2, 1);
+        }
+        if(v3!=-1) {
+            MidiUtility::writeNBitsNumber(str, v3, 1);
+        }
+        if(v4!=-1) {
+            MidiUtility::writeNBitsNumber(str, v4, 1);
+        }
+        if(v5!=-1) {
+            MidiUtility::writeNBitsNumber(str, v5, 1);
+        }
+    }
+    
+    MidiUtility::writeNBitsNumber(midistr, str.size(), 1);	//length
+    MidiUtility::writeString(midistr, str);
+}
+    
 //8-E
 void MidiEvent::importEvent(const std::string& midistr, size_t& offset)
 {
@@ -220,6 +261,11 @@ void MidiEvent::importEvent(const std::string& midistr, size_t& offset)
             break;
     }
     throw std::runtime_error("Unsupported MidiEvent.");
+}
+
+void MidiEvent::exportEvent(std::string& midistr)
+{
+
 }
 
 void SysexEvent::importEvent(const std::string& midistr, size_t& offset)
@@ -302,6 +348,19 @@ void TrackChunk::importChunk(const std::string& midistr, size_t& offset)
     }
 }
 
+//write midi track to the midi file
+void TrackChunk::exportChunk(std::string& midistr)
+{
+    MidiUtility::writeString(midistr, chunkID);		//midi head: MThd
+    MidiUtility::writeNBitsNumber(midistr, chunkSize, 4);	//chunk size
+
+    //meta event
+    for (size_t i=0; i<Events.size(); i++)
+    {
+        Events[i]->exportEvent(midistr);
+    }
+}
+
 void MidiFile::importMidiFile(const std::string& fileName)
 {
     try {
@@ -342,7 +401,7 @@ void MidiFile::exportMidiFile(const std::string& fileName)
     //write midi file track chunks
     for (size_t i=0; i<headerChunk.getTracksNumber(); i++)
     {
-        trackChunks.exportChunk(midistr);
+        trackChunks[i]->exportChunk(midistr);
     }
 
     try {
