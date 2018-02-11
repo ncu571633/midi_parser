@@ -98,6 +98,7 @@ MidiFile::~MidiFile()
         delete(t);
     }
 }
+
 //ff -> meta event
 void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
 {
@@ -111,19 +112,19 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
             {
                 v1 = midistr[offset++];   //MSB
                 v2 = midistr[offset++];   //LSB
-                return ;
+                return;
             }
 
         case 0x32:  // 20 ChannelPrefix
             size = MidiUtility::getDWord(midistr, offset);
             if (size == 1) {
                 v1 = midistr[offset++];   // channel number
-                return ;
+                return;
             }
         case 0x2f: //47 EndOfTrack
             size = MidiUtility::getDWord(midistr, offset);
             if(size == 0) {
-                return ;
+                return;
             }
         case 0x51: //81 SetTempo
             size = MidiUtility::getDWord(midistr, offset);
@@ -133,7 +134,7 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
                 //BPM = 60,000,000/(tt tt tt)
                 //BPM(Beats Per Minute): a tempo of 100 BPM means that 100 quarter notes per minute
                 //MicrosecondsPerQuarterNote=itemp BPM=60000000/itemp
-                return ;
+                return;
             }
         case 0x54: //84 SMPTE Offset
             size = MidiUtility::getDWord(midistr, offset);
@@ -143,7 +144,7 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
                 v3 = midistr[offset++];   // sec
                 v4 = midistr[offset++];   // fr
                 v5 = midistr[offset++];   // subfr
-                return ;
+                return;
             }
         case 0x58: //88 TimeSignature
             size = MidiUtility::getDWord(midistr, offset);
@@ -152,7 +153,7 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
                 v2 = midistr[offset++];   // LogDenominator
                 v3 = midistr[offset++];   // MIDIClocksPerMetronomeClick
                 v4 = midistr[offset++];   // ThirtySecondsPer24Clocks
-                return ;
+                return;
             }
         case 0x59: // KeySignature
             size = MidiUtility::getDWord(midistr, offset);
@@ -169,7 +170,7 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
                 // 0: Major Key
                 // 1: Minor Key
                 v2 = midistr[offset++];   // Mode
-                return ;
+                return;
             }
             //0x01~0x07 string contents
         case 0x01:  // TextEvent
@@ -183,10 +184,11 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
         default:
             content = MidiUtility::getString(midistr, offset, 1);
             size = content.size();
-            return ;
+            return;
 
     }
     std::cerr << "MetaEvent wrong size of " << type << size;
+    return ;
 }
 
 void MetaEvent::exportEvent(std::string& midistr)
@@ -254,18 +256,32 @@ void MidiEvent::importEvent(const std::string& midistr, size_t& offset)
             size = 1;
             return ;
         case 0xF: // SysxMessage with itemp octets
-            content = MidiUtility::getDWord(midistr, offset);
-            size = content.size();
-            return ;
-        default:
-            break;
+            throw std::runtime_error("Unsupported MidiEvent.");
     }
     throw std::runtime_error("Unsupported MidiEvent.");
 }
 
 void MidiEvent::exportEvent(std::string& midistr)
 {
-
+    MidiUtility::writeDWord(midistr, deltaTime); 	//delta time
+    MidiUtility::writeNBitsNumber(midistr, baseType, 1); // type
+    switch(type)
+    {
+        case 0x8://note off: pitch, velocity
+        case 0x9://note on: pitch, velocity
+        case 0xA:// key after touch: pitch, amount
+        case 0xB:// Control Change: control, value
+        case 0xE:// PitchWheelChange:  BottomValue, TopValue
+            MidiUtility::writeNBitsNumber(midistr, v1, 1);
+            MidiUtility::writeNBitsNumber(midistr, v1, 2);
+            return ;
+        case 0xC:// Program Change: New program Number
+        case 0xD:// ChannelAfterTouch:  ChannelNumber
+            MidiUtility::writeNBitsNumber(midistr, v1, 1);
+            return ;
+        default:
+            break;
+    }
 }
 
 void SysexEvent::importEvent(const std::string& midistr, size_t& offset)
@@ -273,6 +289,7 @@ void SysexEvent::importEvent(const std::string& midistr, size_t& offset)
     baseType = midistr[offset++];
     content = MidiUtility::getString(midistr, offset, 0);
     size = content.size();
+    return;
 }
 
 Event* TrackChunk::importEvent(const std::string& midistr, size_t& offset)
@@ -351,14 +368,15 @@ void TrackChunk::importChunk(const std::string& midistr, size_t& offset)
 //write midi track to the midi file
 void TrackChunk::exportChunk(std::string& midistr)
 {
-    MidiUtility::writeString(midistr, chunkID);		//midi head: MThd
-    MidiUtility::writeNBitsNumber(midistr, chunkSize, 4);	//chunk size
+    MidiUtility::writeString(midistr, chunkID);		//midi head: MTrk
 
-    //meta event
+    std::string str;
     for (size_t i=0; i<Events.size(); i++)
     {
-        Events[i]->exportEvent(midistr);
+        Events[i]->exportEvent(str);
     }
+    MidiUtility::writeNBitsNumber(midistr, str.size(), 4);	//chunk size
+    MidiUtility::writeString(midistr, str);	//chunk size
 }
 
 void MidiFile::importMidiFile(const std::string& fileName)

@@ -10,12 +10,12 @@
 class MidiUtility
 {
     public:
-        //get a fixed length(bits) word.
+        //a fixed length(bits) word.
         static int getNBitsNumber(const std::string &midistr, size_t& offset, int bits);
         //return 0xFFFF (2*bits)
         static size_t writeNBitsNumberHelper(int bits);
         static void writeNBitsNumber(std::string &midistr, size_t value, int bits);
-        //get a variable length word.
+        //a variable length word.
         static size_t getDWord(const std::string &midistr, size_t& offset);
         static void writeDWord(std::string &midistr, size_t value);
         //get string 
