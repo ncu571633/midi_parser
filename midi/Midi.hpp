@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 
 /********************************************/
 /*******Midi Utility    *********************/
@@ -22,6 +23,12 @@ class MidiUtility
         static std::string getString(const std::string &midistr, size_t& offset, int type);
         //write string
         static void writeString(std::string &midistr, const std::string& str);
+
+        template<class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
+        static std::string addXMLAttribute(const std::string& attribute, T& value);
+        
+        template<class T, class = typename std::enable_if<!std::is_fundamental<T>::value>::type>
+        static std::string addXMLAttribute(const std::string& attribute, T& value);
 };
 
 /********************************************/
@@ -52,6 +59,7 @@ class Event
         
         virtual void importEvent(const std::string& midistr, size_t& offset) {}
         virtual void exportEvent(std::string& midistr) {}
+        virtual void exportEvent2XML(std::ofstream& midifp) {}
 };
 
 class MetaEvent: public Event
@@ -65,6 +73,7 @@ class MetaEvent: public Event
         ~MetaEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
+        void exportEvent2XML(std::ofstream& midifp);
 };
 
 class MidiEvent: public Event
@@ -74,6 +83,7 @@ class MidiEvent: public Event
         ~MidiEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
+        void exportEvent2XML(std::ofstream& midifp);
 };
 
 class SysexEvent: public Event
@@ -83,6 +93,7 @@ class SysexEvent: public Event
         ~SysexEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr) {}
+        void exportEvent2XML(std::ofstream& midifp) {}
 };
 
 class HeaderChunk
@@ -97,6 +108,7 @@ class HeaderChunk
         size_t getTracksNumber() { return tracksNumber; }
         void importChunk(const std::string& midistr, size_t& offset);
         void exportChunk(std::string& midistr);
+        void exportChunk2XML(std::ofstream& midifp);
 };
 
 class TrackChunk
@@ -110,6 +122,7 @@ class TrackChunk
         Event* importEvent(const std::string& midistr, size_t& offset);
         void importChunk(const std::string& midistr, size_t& offset);
         void exportChunk(std::string& midistr);
+        void exportChunk2XML(std::ofstream& midifp, size_t trackNumber);
 };
 
 class MidiFile

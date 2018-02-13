@@ -1,9 +1,9 @@
 #include "Midi.hpp"
 
 #include <iostream>
-#include <fstream>
 #include <cerrno>
 #include <cstring>
+#include <type_traits>
 
 int MidiUtility::getNBitsNumber(const std::string &midistr, size_t& offset, int bits)
 {
@@ -84,6 +84,19 @@ void MidiUtility::writeString(std::string &midistr, const std::string& str)
 {
     midistr += str;
 }
+
+template<class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
+std::string addXMLAttribute(const std::string& attribute, T& value)
+{
+    return std::string(" " + attribute + "=" + std::to_string(value) + " ");
+}
+
+template<class T, class = typename std::enable_if<!std::is_fundamental<T>::value>::type>
+std::string addXMLAttribute(const std::string& attribute, T& value)
+{
+    return std::string(" " + attribute + "=" + value + " ");
+}
+
 
 TrackChunk::~TrackChunk()
 {
@@ -231,7 +244,12 @@ void MetaEvent::exportEvent(std::string& midistr)
     MidiUtility::writeNBitsNumber(midistr, str.size(), 1);	//length
     MidiUtility::writeString(midistr, str);
 }
-    
+
+void MetaEvent::exportEvent2XML(std::ofstream& midifp)
+{
+
+}
+
 //8-E
 void MidiEvent::importEvent(const std::string& midistr, size_t& offset)
 {
@@ -269,9 +287,9 @@ void MidiEvent::exportEvent(std::string& midistr)
     {
         case 0x8://note off: pitch, velocity
         case 0x9://note on: pitch, velocity
-        case 0xA:// key after touch: pitch, amount
-        case 0xB:// Control Change: control, value
-        case 0xE:// PitchWheelChange:  BottomValue, TopValue
+        case 0xA://key after touch: pitch, amount
+        case 0xB://Control Change: control, value
+        case 0xE://PitchWheelChange:  BottomValue, TopValue
             MidiUtility::writeNBitsNumber(midistr, v1, 1);
             MidiUtility::writeNBitsNumber(midistr, v1, 2);
             return ;
@@ -282,6 +300,52 @@ void MidiEvent::exportEvent(std::string& midistr)
         default:
             break;
     }
+}
+
+void MidiEvent::exportEvent2XML(std::ofstream& midifp)
+{
+    midifp << "\t<event" << MidiUtility::addXMLAttribute("deltaTime", deltaTime);
+
+    switch(type)
+    {
+        case 0x8:
+            midifp << MidiUtility::addXMLAttribute("Name", "Note Off")
+                << MidiUtility::addXMLAttribute("pitch", v1)
+                << MidiUtility::addXMLAttribute("velocity", v2);
+            break;
+        case 0x9:
+            midifp << MidiUtility::addXMLAttribute("Name", "Note On")
+                << MidiUtility::addXMLAttribute("pitch", v1)
+                << MidiUtility::addXMLAttribute("velocity", v2);
+            break;
+        case 0xA:
+            midifp << MidiUtility::addXMLAttribute("Name", "Key after touch")
+                << MidiUtility::addXMLAttribute("pitch", v1)
+                << MidiUtility::addXMLAttribute("amount", v2);
+            break;
+        case 0xB:
+            midifp << MidiUtility::addXMLAttribute("Name", "Control Change")
+                << MidiUtility::addXMLAttribute("control", v1)
+                << MidiUtility::addXMLAttribute("value", v2);
+            break;
+        case 0xE:
+            midifp << MidiUtility::addXMLAttribute("Name", "PitchWheelChange")
+                << MidiUtility::addXMLAttribute("BottomValue", v1)
+                << MidiUtility::addXMLAttribute("TopValue", v2);
+            break;
+        case 0xC:
+            midifp << MidiUtility::addXMLAttribute("Name", "Program Change")
+                << MidiUtility::addXMLAttribute("NewProgramNumber", v1);
+            break;
+        case 0xD:
+            midifp << MidiUtility::addXMLAttribute("Name", "ChannelAfterTouch")
+                << MidiUtility::addXMLAttribute("ChannelNumber", v1);
+            break;
+        default:
+            break;
+    }
+
+    midifp << ">\n";
 }
 
 void SysexEvent::importEvent(const std::string& midistr, size_t& offset)
@@ -344,6 +408,15 @@ void HeaderChunk::exportChunk(std::string& midistr)
     MidiUtility::writeNBitsNumber(midistr, deltaTimeTicks, 2);	//Delta-time ticks per quarter note
 }
 
+void HeaderChunk::exportChunk2XML(std::ofstream& midifp)
+{
+    midifp << "<HeaderChunk>\n";
+    midifp << "Format Type: " << format << "\n";
+    midifp << "Track Number: " << tracksNumber << "\n";
+    midifp << "DeltaTime: " << deltaTimeTicks << "\n";
+    midifp << "</HeaderChunk>\n";
+}
+
 void TrackChunk::importChunk(const std::string& midistr, size_t& offset)
 {
     //check track chunk head("MTrk") and track chunk size(shold not be 0)
@@ -377,6 +450,16 @@ void TrackChunk::exportChunk(std::string& midistr)
     }
     MidiUtility::writeNBitsNumber(midistr, str.size(), 4);	//chunk size
     MidiUtility::writeString(midistr, str);	//chunk size
+}
+
+void TrackChunk::exportChunk2XML(std::ofstream& midifp, size_t trackNumber)
+{
+    midifp << "<TrackChunk" << trackNumber << ">\n";
+    for (size_t i=0; i<Events.size(); i++)
+    {
+        Events[i]->exportEvent2XML(midifp);
+    }
+    midifp << "</TrackChunk" << trackNumber << ">\n";
 }
 
 void MidiFile::importMidiFile(const std::string& fileName)
@@ -428,6 +511,32 @@ void MidiFile::exportMidiFile(const std::string& fileName)
             throw std::runtime_error("Could not open " + fileName + "for writing");
         }
         std::copy(midistr.begin(), midistr.end(), std::ostreambuf_iterator<char>(midifp));
+    } catch (const std::exception& e) {
+        std::cerr << fileName << " " << e.what();
+    }
+}
+
+void MidiFile::exportXMLFile(const std::string& fileName)
+{
+    try {
+        std::ofstream midifp(fileName.c_str());
+        if (!midifp) {
+            throw std::runtime_error("Could not open " + fileName + "for writing");
+        }
+        midifp << "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n";
+        midifp << "<!DOCTYPE MIDIFile PUBLIC\n";
+        midifp << "  \"-//Recordare//DTD MusicXML 0.9 MIDI//EN\"\n";
+        midifp << "  \"http://www.musicxml.org/dtds/midixml.dtd\">\n";
+        midifp << "<MIDIFile>\n";
+
+        headerChunk.exportChunk2XML(midifp);
+        for (size_t i=0; i<headerChunk.getTracksNumber(); i++)
+        {
+            trackChunks[i]->exportChunk2XML(midifp, i);
+        }
+
+        midifp << "</MIDIFile>\n";
+        midifp.close();
     } catch (const std::exception& e) {
         std::cerr << fileName << " " << e.what();
     }
