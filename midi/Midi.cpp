@@ -3,7 +3,6 @@
 #include <iostream>
 #include <cerrno>
 #include <cstring>
-#include <type_traits>
 
 int MidiUtility::getNBitsNumber(const std::string &midistr, size_t& offset, int bits)
 {
@@ -85,16 +84,18 @@ void MidiUtility::writeString(std::string &midistr, const std::string& str)
     midistr += str;
 }
 
-template<class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-std::string addXMLAttribute(const std::string& attribute, T& value)
+template<class T>
+typename std::enable_if<std::is_fundamental<T>::value, std::string>::type
+MidiUtility::addXMLAttribute(const std::string& attribute, T& value)
 {
-    return std::string(" " + attribute + "=" + std::to_string(value) + " ");
+    return std::string(" " + attribute + "=\"" + std::to_string(value) + "\" ");
 }
 
-template<class T, class = typename std::enable_if<!std::is_fundamental<T>::value>::type>
-std::string addXMLAttribute(const std::string& attribute, T& value)
+template<class T>
+typename std::enable_if<!std::is_fundamental<T>::value, std::string>::type
+MidiUtility::addXMLAttribute(const std::string& attribute, T& value)
 {
-    return std::string(" " + attribute + "=" + value + " ");
+    return std::string(" " + attribute + "=\"" + value + "\" ");
 }
 
 
@@ -172,16 +173,9 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
             size = MidiUtility::getDWord(midistr, offset);
             if(size == 2)
             {
-                // Fifths:
-                // -7: 7flats
-                // -1: 1flat
-                // 0; keyofC
-                // 1: 1sharp
-                // 7: 7sharps
+                // Fifths(-7: 7flats, -1: 1flat, 0: keyofC, 1: 1sharp, 7: 7sharps)
                 v1 = midistr[offset++];
-                // Mode:
-                // 0: Major Key
-                // 1: Minor Key
+                // Mode(0: Major Key, 1: Minor Key)
                 v2 = midistr[offset++];   // Mode
                 return;
             }
@@ -247,7 +241,104 @@ void MetaEvent::exportEvent(std::string& midistr)
 
 void MetaEvent::exportEvent2XML(std::ofstream& midifp)
 {
+    midifp << "\t<MetaEvent" << MidiUtility::addXMLAttribute("deltaTime", deltaTime);
 
+    switch (type)
+    {
+        case 0x00:
+            midifp << MidiUtility::addXMLAttribute("Name", "SequenceNumber")
+                << MidiUtility::addXMLAttribute("MSB", v1)
+                << MidiUtility::addXMLAttribute("LSB", v2);
+            break;
+        case 0x32:  // 20 ChannelPrefix
+            midifp << MidiUtility::addXMLAttribute("Name", "ChannelPrefix")
+                << MidiUtility::addXMLAttribute("ChannelNumber", v1);
+            break;
+        case 0x2f: //47 EndOfTrack
+            midifp << MidiUtility::addXMLAttribute("Name", "EndOfTrack");
+            break;
+        case 0x51: //81 SetTempo
+            {
+                int beatsPerMinute = 60000000/v1;
+                midifp << MidiUtility::addXMLAttribute("Name", "SetTempo")
+                    << MidiUtility::addXMLAttribute("BeatsPerMinute", beatsPerMinute);
+                break;
+            }
+        case 0x54: //84 SMPTE Offset
+            midifp << MidiUtility::addXMLAttribute("Name", "SMPTE Offset")
+                << MidiUtility::addXMLAttribute("hour", v1)
+                << MidiUtility::addXMLAttribute("min", v2)
+                << MidiUtility::addXMLAttribute("sec", v3)
+                << MidiUtility::addXMLAttribute("fr", v4)
+                << MidiUtility::addXMLAttribute("subfr", v5);
+            break;
+        case 0x58: //88 TimeSignature
+            midifp << MidiUtility::addXMLAttribute("Name", "TimeSignature")
+                << MidiUtility::addXMLAttribute("Numerator", v1)
+                << MidiUtility::addXMLAttribute("LogDenominator", v2)
+                << MidiUtility::addXMLAttribute("MIDIClocksPerMetronomeClick", v3)
+                << MidiUtility::addXMLAttribute("ThirtySecondsPer24Clocks", v4);
+            break;
+        case 0x59: // KeySignature
+            midifp << MidiUtility::addXMLAttribute("Name", "KeySignature");
+            switch (v1) {
+                case -7:
+                    midifp << MidiUtility::addXMLAttribute("Fifths", "7flats");
+                    break;
+                case -1:
+                    midifp << MidiUtility::addXMLAttribute("Fifths", "1flats");
+                    break;
+                case 0:
+                    midifp << MidiUtility::addXMLAttribute("Fifths", "KeyOfC");
+                    break;
+                case 1:
+                    midifp << MidiUtility::addXMLAttribute("Fifths", "1Sharp");
+                    break;
+                case 7:
+                    midifp << MidiUtility::addXMLAttribute("Fifths", "7Sharps");
+                    break;
+                default:
+                    midifp << MidiUtility::addXMLAttribute("Fifths", "invalid");
+                    break;
+            }
+            switch (v2) {
+                case 0:
+                    midifp << MidiUtility::addXMLAttribute("Mode", "MajorKey");
+                    break;
+                case 1:
+                    midifp << MidiUtility::addXMLAttribute("Mode", "MinorKey");
+                    break;
+                default:
+                    midifp << MidiUtility::addXMLAttribute("Mode", "invalid");
+                    break;
+            }
+            break;
+        case 0x01: 
+            midifp << MidiUtility::addXMLAttribute("TextEvent", content);
+            break;
+        case 0x02:
+            midifp << MidiUtility::addXMLAttribute("CopyRight", content);
+            break;
+        case 0x03:
+            midifp << MidiUtility::addXMLAttribute("SequenceOrTrackName", content);
+            break;
+        case 0x04:
+            midifp << MidiUtility::addXMLAttribute("InstrumentName", content);
+            break;
+        case 0x05:
+            midifp << MidiUtility::addXMLAttribute("Lyric", content);
+            break;
+        case 0x06:
+            midifp << MidiUtility::addXMLAttribute("Marker", content);
+            break;
+        case 0x07:
+            midifp << MidiUtility::addXMLAttribute("CuePoint", content);
+            break;
+        case 0x7f:
+            midifp << MidiUtility::addXMLAttribute("SequencerSpecificInformation", content);
+            break;
+    }
+    midifp << "></MetaEvent>\n";
 }
 
 //8-E
@@ -304,7 +395,7 @@ void MidiEvent::exportEvent(std::string& midistr)
 
 void MidiEvent::exportEvent2XML(std::ofstream& midifp)
 {
-    midifp << "\t<event" << MidiUtility::addXMLAttribute("deltaTime", deltaTime);
+    midifp << "\t<MidiEvent" << MidiUtility::addXMLAttribute("deltaTime", deltaTime);
 
     switch(type)
     {
@@ -345,7 +436,7 @@ void MidiEvent::exportEvent2XML(std::ofstream& midifp)
             break;
     }
 
-    midifp << ">\n";
+    midifp << "></MidiEvent>\n";
 }
 
 void SysexEvent::importEvent(const std::string& midistr, size_t& offset)
@@ -454,12 +545,12 @@ void TrackChunk::exportChunk(std::string& midistr)
 
 void TrackChunk::exportChunk2XML(std::ofstream& midifp, size_t trackNumber)
 {
-    midifp << "<TrackChunk" << trackNumber << ">\n";
+    midifp << "<TrackChunk" << MidiUtility::addXMLAttribute("TrackNumber", trackNumber) << ">\n";
     for (size_t i=0; i<Events.size(); i++)
     {
         Events[i]->exportEvent2XML(midifp);
     }
-    midifp << "</TrackChunk" << trackNumber << ">\n";
+    midifp << "</TrackChunk>\n";
 }
 
 void MidiFile::importMidiFile(const std::string& fileName)

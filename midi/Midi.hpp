@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <type_traits>
 
 /********************************************/
 /*******Midi Utility    *********************/
@@ -24,11 +25,13 @@ class MidiUtility
         //write string
         static void writeString(std::string &midistr, const std::string& str);
 
-        template<class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-        static std::string addXMLAttribute(const std::string& attribute, T& value);
+        template<class T>
+        typename std::enable_if<std::is_fundamental<T>::value, std::string>::type
+        static addXMLAttribute(const std::string& attribute, T& value);
         
-        template<class T, class = typename std::enable_if<!std::is_fundamental<T>::value>::type>
-        static std::string addXMLAttribute(const std::string& attribute, T& value);
+        template<class T>
+        typename std::enable_if<!std::is_fundamental<T>::value, std::string>::type
+        static addXMLAttribute(const std::string& attribute, T& value);
 };
 
 /********************************************/
