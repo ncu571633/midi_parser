@@ -8,7 +8,7 @@ int MidiUtility::getNBitsNumber(const std::string &midistr, size_t& offset, int 
 {
     int number = 0;
     while (bits--) {
-        number = (number<<8) | midistr[offset++];
+        number = (number<<8) | (unsigned char)midistr[offset++];
     }
     return number;
 }
@@ -259,8 +259,9 @@ void MetaEvent::exportEvent2XML(std::ofstream& midifp)
             break;
         case 0x51: //81 SetTempo
             {
-                int beatsPerMinute = 60000000/v1;
+                size_t beatsPerMinute = 60000000/v1;
                 midifp << MidiUtility::addXMLAttribute("Name", "SetTempo")
+                    << MidiUtility::addXMLAttribute("MicrosecondsPerQuarterNote", v1)
                     << MidiUtility::addXMLAttribute("BeatsPerMinute", beatsPerMinute);
                 break;
             }
@@ -395,8 +396,10 @@ void MidiEvent::exportEvent(std::string& midistr)
 
 void MidiEvent::exportEvent2XML(std::ofstream& midifp)
 {
-    midifp << "\t<MidiEvent" << MidiUtility::addXMLAttribute("deltaTime", deltaTime);
-
+    int channelNumber = baseType&0x0f;
+    midifp << "\t<MidiEvent" << MidiUtility::addXMLAttribute("deltaTime", deltaTime)
+                             << MidiUtility::addXMLAttribute("ChannelNumber", channelNumber);
+                                
     switch(type)
     {
         case 0x8:
