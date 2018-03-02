@@ -1,6 +1,4 @@
 
-PICDIR = ./pic/
-
 ########################################################
 CC = g++
 LIBS = 
@@ -8,7 +6,7 @@ LIBS =
 CPPFLAGS = -Wall -g3 -std=c++11
 
 ########################################################
-objects = Midi.o
+objects = Midi.o Music.o
 
 all: main.o $(objects)
 	$(CC) -o test main.o $(objects) $(CPPFLAGS) $(LIBS)
