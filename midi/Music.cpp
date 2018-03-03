@@ -23,29 +23,32 @@ std::string MusicUtility::decode(int number)
 
 void MusicUtility::initNoteArray()
 {
-	for (int j=0; j<MusicUtility::NoteArraySize; j++)
+	for (int j=0; j<NoteArraySize; j++)
 	{
-		MusicUtility::NoteArray[j] = 0; 
-        std::string note = MusicUtility::decode(j);
-		for (int i=0; i<MusicUtility::scaleSize; i++)
+		NoteArray[j] = 0;
+        std::string note = decode(j);
+
+		for (int i=0; i<scaleSize; i++)
 		{
-            if(note.substr(1)==MusicUtility::scale[i])
+            if((note.size()==2 && note.substr(1)==scale[i])
+            || (note.size()==3 && scale[i].find(note.substr(1))!=std::string::npos))
             {
-				MusicUtility::NoteArray[j] = (i + (note[0]-'0')*MusicUtility::scaleSize-8);
+				NoteArray[j] = (i + (note[0]-'0')*scaleSize-8);
 				break;
             }
 		}
 	}
     
-    MusicUtility::validate();
+    validate();
 }
 
 void MusicUtility::validate()
 {
-    for(int i=0; i<128; i++)
+    for(int i=0; i<88; i++)
     {
-        std::string note = MusicUtility::KeyNumber2Note(i);
-        assert(i == MusicUtility::Note2KeyNumber(note));
+        std::string note = KeyNumber2Note(i);
+        assert(decode(code(note)) == note);
+        assert(i == Note2KeyNumber(note));
     }
 }
 
@@ -61,29 +64,36 @@ int MusicUtility::KeyNumber2Midi(int KeyNumber)
 
 int MusicUtility::Note2KeyNumber(std::string& note)
 {
-	int i = MusicUtility::code(note);
-	if ( i<0 || i>=MusicUtility::NoteArraySize)
+	int i = code(note);
+	if ( i<0 || i>=NoteArraySize)
 	{
         return -1;
 	}
-    if (MusicUtility::NoteArray[0] == -1)
+    if (NoteArray[0] == -1)
     {
-	    MusicUtility::initNoteArray();
+	    initNoteArray();
     }
-	return MusicUtility::NoteArray[i];
+	return NoteArray[i];
 }
 
 std::string MusicUtility::KeyNumber2Note(int k)
 {
-    return std::string(1, ((k+9)/scaleSize) + '0') + scale[(k+8)%scaleSize];
+    std::string ret(1, ((k+9)/scaleSize) + '0');
+	int i = (k+9) % scaleSize -1;
+	if (i < 0)
+	{
+		ret[0]--;
+		i += scaleSize;
+	}
+    return ret + scale[i].substr(0, 2); 
 }
 
 int MusicUtility::Note2MidiNumber(std::string& note)
 {
-    return MusicUtility::KeyNumber2Midi(MusicUtility::Note2KeyNumber(note));
+    return KeyNumber2Midi(Note2KeyNumber(note));
 }
 
 std::string MusicUtility::MidiNumber2Note(int PianoKeyNumber)
 {
-    return MusicUtility::KeyNumber2Note(MusicUtility::Midi2KeyNumber(PianoKeyNumber));
+    return KeyNumber2Note(Midi2KeyNumber(PianoKeyNumber));
 }

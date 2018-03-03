@@ -16,9 +16,9 @@ class MusicUtility
         static const std::string scale[];
         static int scaleSize;
        
-        // store note string in an integer
+        // store note string in a 8 bit integer
         // note: 4c, 4c+
-        // pitch: 0~9 use 4 bits to store  
+        // pitch: 0~7 use 3 bits to store  
         // scale: a~g use 3 bits to store
         // +/-/'\0': use 2 bit to store: '+':0b10, '-':0b00, '\0':0b01
         static int code(const std::string& note);
@@ -27,7 +27,7 @@ class MusicUtility
         // NoteArray: used as a pre-calculated map:
         //  index: note integer 
         //  value: piano key number 
-        static const int NoteArraySize = 1024;
+        static const int NoteArraySize = 256;
         static std::vector<int> NoteArray;
         static void initNoteArray();
 

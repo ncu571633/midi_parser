@@ -1,8 +1,9 @@
 #include "Midi.hpp"
+#include "Music.hpp"
 
 #include <iostream>
 #include <cerrno>
-#include <cstring>
+#include <cstring> // strerror
 
 int MidiUtility::getNBitsNumber(const std::string &midistr, size_t& offset, int bits)
 {
@@ -165,8 +166,11 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
             if (size == 4) {
                 v1 = midistr[offset++];   // Numerator
                 v2 = midistr[offset++];   // LogDenominator
-                v3 = midistr[offset++];   // MIDIClocksPerMetronomeClick
-                v4 = midistr[offset++];   // ThirtySecondsPer24Clocks
+                v3 = midistr[offset++];   // MIDIClocksPerMetronomeClick = Numberator * interval /(16*4);
+                v4 = midistr[offset++];   // ThirtySecondsPer24Clocks = interval / (16*3);
+                if (v4*3 != v3*4/v1) {
+                    std::cerr << "Wrong Meta TimeSignature event value\n";
+                }
                 return;
             }
         case 0x59: // KeySignature
@@ -403,15 +407,23 @@ void MidiEvent::exportEvent2XML(std::ofstream& midifp)
     switch(type)
     {
         case 0x8:
-            midifp << MidiUtility::addXMLAttribute("Name", "Note Off")
-                << MidiUtility::addXMLAttribute("pitch", v1)
-                << MidiUtility::addXMLAttribute("velocity", v2);
-            break;
+            {
+                std::string note = MusicUtility::MidiNumber2Note(v1);
+                midifp << MidiUtility::addXMLAttribute("Name", "Note Off")
+                    << MidiUtility::addXMLAttribute("pitch", v1)
+                    << MidiUtility::addXMLAttribute("note", note)
+                    << MidiUtility::addXMLAttribute("velocity", v2);
+                break;
+            }
         case 0x9:
-            midifp << MidiUtility::addXMLAttribute("Name", "Note On")
-                << MidiUtility::addXMLAttribute("pitch", v1)
-                << MidiUtility::addXMLAttribute("velocity", v2);
-            break;
+            {
+                std::string note = MusicUtility::MidiNumber2Note(v1);
+                midifp << MidiUtility::addXMLAttribute("Name", "Note On")
+                    << MidiUtility::addXMLAttribute("pitch", v1)
+                    << MidiUtility::addXMLAttribute("note", note)
+                    << MidiUtility::addXMLAttribute("velocity", v2);
+                break;
+            }
         case 0xA:
             midifp << MidiUtility::addXMLAttribute("Name", "Key after touch")
                 << MidiUtility::addXMLAttribute("pitch", v1)
