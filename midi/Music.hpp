@@ -6,7 +6,7 @@
 
 // MusicUtility class does the conversion among the notations below:
 // music note(English notation): pitch-scale: like 4c, 5d
-// piano key number(88 key): 40 (c4) 
+// piano key number(88 key): 40 -> c4, 28 -> 3c, 16 -> 2c, 4 -> 1c 
 // midi number
 
 class MusicUtility
@@ -16,17 +16,24 @@ class MusicUtility
         static const std::string scale[];
         static int scaleSize;
        
-        // NoteArray:   index: 
-        //              value: note
-        // pre-calculate
+        // store note string in an integer
+        // note: 4c, 4c+
+        // pitch: 0~9 use 4 bits to store  
+        // scale: a~g use 3 bits to store
+        // +/-/'\0': use 2 bit to store: '+':0b10, '-':0b00, '\0':0b01
+        static int code(const std::string& note);
+        static std::string decode(int number);
+        
+        // NoteArray: used as a pre-calculated map:
+        //  index: note integer 
+        //  value: piano key number 
         static const int NoteArraySize = 1024;
         static std::vector<int> NoteArray;
         static void initNoteArray();
 
-        static int code(const std::string& note);
-        static std::string decode(int number);
+        static void validate();
     public:
-        // midi number <-> piano key number
+        // midi number <-> piano key number (88 keys, 40 -> 4c)
         static int Midi2KeyNumber(int MidiNumber);
         static int KeyNumber2Midi(int KeyNumber);
 
