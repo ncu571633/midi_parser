@@ -8,11 +8,11 @@ Functions:
 5. APIs to do conversions between: midi event number, piano key number and music note notation;
 
 Hierarchical Midi Data Structures (The hierarchical Midi data structures are designed in Midi.hpp)
-1.  MidiFile class
-2.    HeadChunk class
-3.    TrackChunk class
-4.      MetaEvent class
-5.      MidiEvent class
+1. MidiFile class
+2.  HeadChunk class
+3.  TrackChunk class
+4.   MetaEvent class
+5.   MidiEvent class
 
 Only need to use three APIs defined in MidiFile class for Midi file importing and exporting. The other classes and functions are encapsulated.
 1. void importMidiFile(const std::string& fileName);
@@ -20,11 +20,11 @@ Only need to use three APIs defined in MidiFile class for Midi file importing an
 3. void exportXMLFile(const std::string& fileName);
 
 Example see main.cpp
-int main()
-{
-    MidiFile midi;
-    midi.importMidiFile("close.mid");
-    midi.exportMidiFile("close1.mid");
-    midi.exportXMLFile("close.xml");
-    return 1;
-}
+1. int main()
+2. {
+3.     MidiFile midi;
+4.     midi.importMidiFile("close.mid");
+5.     midi.exportMidiFile("close1.mid");
+6.     midi.exportXMLFile("close.xml");
+7.     return 1;
+8. }
