@@ -2,6 +2,7 @@
 #include "Music.hpp"
 
 #include "iostream"
+
 int main()
 {
     MidiFile midi;

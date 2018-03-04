@@ -70,7 +70,7 @@ std::string MidiUtility::getString(const std::string &midistr, size_t& offset, i
     size_t len = MidiUtility::getDWord(midistr, offset);
     for (size_t i=0; i<len; i++)
     {
-        if (type) { // print the ASCII content
+        if (type) {
             str += midistr[offset++];
         }
         else {//system sysex event "%x "
@@ -98,7 +98,6 @@ MidiUtility::addXMLAttribute(const std::string& attribute, T& value)
 {
     return std::string(" " + attribute + "=\"" + value + "\" ");
 }
-
 
 TrackChunk::~TrackChunk()
 {
@@ -129,7 +128,6 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
                 v2 = midistr[offset++];   //LSB
                 return;
             }
-
         case 0x32:  // 20 ChannelPrefix
             size = MidiUtility::getDWord(midistr, offset);
             if (size == 1) {
@@ -196,7 +194,6 @@ void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
             content = MidiUtility::getString(midistr, offset, 1);
             size = content.size();
             return;
-
     }
     std::cerr << "MetaEvent wrong size of " << type << size;
     return ;
@@ -209,8 +206,8 @@ void MetaEvent::exportEvent(std::string& midistr)
     MidiUtility::writeNBitsNumber(midistr, type, 1);
     
     // Special case: type 0x51 tempo
-    if (type == 51) {
-        MidiUtility::writeNBitsNumber(midistr, 3, 1);
+    if (type == 0x51) {
+        MidiUtility::writeNBitsNumber(midistr, 3, 1);   // size
         MidiUtility::writeNBitsNumber(midistr, v1, 3);
         return ;
     }
@@ -303,7 +300,7 @@ void MetaEvent::exportEvent2XML(std::ofstream& midifp)
                     midifp << MidiUtility::addXMLAttribute("Fifths", "7Sharps");
                     break;
                 default:
-                    midifp << MidiUtility::addXMLAttribute("Fifths", "invalid");
+                    std::cerr << "Invalid Fifths\n";
                     break;
             }
             switch (v2) {
@@ -314,7 +311,7 @@ void MetaEvent::exportEvent2XML(std::ofstream& midifp)
                     midifp << MidiUtility::addXMLAttribute("Mode", "MinorKey");
                     break;
                 default:
-                    midifp << MidiUtility::addXMLAttribute("Mode", "invalid");
+                    std::cerr << "Invalid mode\n";
                     break;
             }
             break;
@@ -370,9 +367,9 @@ void MidiEvent::importEvent(const std::string& midistr, size_t& offset)
             size = 1;
             return ;
         case 0xF: // SysxMessage with itemp octets
-            throw std::runtime_error("Unsupported MidiEvent.");
+            throw std::runtime_error("Unsupported MidiEvent.\n");
     }
-    throw std::runtime_error("Unsupported MidiEvent.");
+    throw std::runtime_error("Unsupported MidiEvent.\n");
 }
 
 void MidiEvent::exportEvent(std::string& midistr)
@@ -387,7 +384,7 @@ void MidiEvent::exportEvent(std::string& midistr)
         case 0xB://Control Change: control, value
         case 0xE://PitchWheelChange:  BottomValue, TopValue
             MidiUtility::writeNBitsNumber(midistr, v1, 1);
-            MidiUtility::writeNBitsNumber(midistr, v1, 2);
+            MidiUtility::writeNBitsNumber(midistr, v2, 1);
             return ;
         case 0xC:// Program Change: New program Number
         case 0xD:// ChannelAfterTouch:  ChannelNumber
@@ -480,10 +477,10 @@ Event* TrackChunk::importEvent(const std::string& midistr, size_t& offset)
             e = new MidiEvent();
         }
         else {
-            throw std::runtime_error("Unsupported Event.");
+            throw std::runtime_error("Unsupported Event.\n");
         }
     } else {
-        throw std::runtime_error("Useless data.");
+        throw std::runtime_error("Useless data.\n");
     }
     e->importEvent(midistr, offset);
     e->setDeltaTime(deltaTime);
@@ -571,6 +568,11 @@ void TrackChunk::exportChunk2XML(std::ofstream& midifp, size_t trackNumber)
 void MidiFile::importMidiFile(const std::string& fileName)
 {
     try {
+        if(trackChunks.size())
+        {
+            throw std::runtime_error("Create another MidiFile object for importing.\n");
+        }
+        
         std::string midistr;
         {
             std::ifstream midifp(fileName.c_str(), std::ios::in | std::ios::binary);
@@ -614,7 +616,7 @@ void MidiFile::exportMidiFile(const std::string& fileName)
     try {
         std::ofstream midifp(fileName.c_str(), std::ios::binary);
         if (!midifp) {
-            throw std::runtime_error("Could not open " + fileName + "for writing");
+            throw std::runtime_error("Could not open " + fileName + "for writing.\n");
         }
         std::copy(midistr.begin(), midistr.end(), std::ostreambuf_iterator<char>(midifp));
     } catch (const std::exception& e) {
@@ -627,7 +629,7 @@ void MidiFile::exportXMLFile(const std::string& fileName)
     try {
         std::ofstream midifp(fileName.c_str());
         if (!midifp) {
-            throw std::runtime_error("Could not open " + fileName + "for writing");
+            throw std::runtime_error("Could not open " + fileName + "for writing.\n");
         }
         midifp << "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n";
         midifp << "<!DOCTYPE MIDIFile PUBLIC\n";
