@@ -20,11 +20,7 @@ Only need to use three APIs defined in MidiFile class for Midi file importing an
 3. void exportXMLFile(const std::string& fileName);
 
 Example see main.cpp
-1. int main()
-2. {
-3.     MidiFile midi;
-4.     midi.importMidiFile("close.mid");
-5.     midi.exportMidiFile("close1.mid");
-6.     midi.exportXMLFile("close.xml");
-7.     return 1;
-8. }
+  MidiFile midi;
+  midi.importMidiFile("close.mid");
+  midi.exportMidiFile("close1.mid");
+  midi.exportXMLFile("close.xml");
