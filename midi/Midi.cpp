@@ -2,6 +2,7 @@
 #include "Music.hpp"
 
 #include <iostream>
+#include <sstream>
 #include <cerrno>
 #include <cstring> // strerror
 
@@ -565,6 +566,30 @@ void TrackChunk::exportChunk2XML(std::ofstream& midifp, size_t trackNumber)
     midifp << "</TrackChunk>\n";
 }
 
+void TrackChunk::importMidiTXTFile(const std::string& txtName)
+{
+    std::ifstream midifp(txtName);
+    if (!midifp) {
+        throw std::runtime_error("Could not open " + txtName + "for writing.\n");
+    }
+    // import midi event data from txt file
+    int lastTime = 0;
+    int noteChannel = 0;
+    std::string time, noteType, noteNumber, noteVelocity;
+    std::string line;
+    while (std::getline(midifp,line)) {
+        std::istringstream ls(line);
+        ls >> time;
+        ls >> noteType;
+        ls >> noteNumber;
+        ls >> noteVelocity;
+        
+        Events.push_back(new MidiEvent(stoi(noteType)+8, stoi(time)-lastTime, 
+                stoi(noteNumber), stoi(noteVelocity)));
+        lastTime = stoi(time);
+    }
+}
+
 void MidiFile::importMidiFile(const std::string& fileName)
 {
     try {
@@ -648,4 +673,22 @@ void MidiFile::exportXMLFile(const std::string& fileName)
     } catch (const std::exception& e) {
         std::cerr << fileName << " " << e.what();
     }
+}
+
+void MidiFile::importMidiTXTFile(const std::string& midiTxt)
+{
+    if(trackChunks.size())
+    {
+        throw std::runtime_error("Create another MidiFile object for importing.\n");
+    }
+
+
+
+
+
+}
+
+void MidiFile::exportMidiTXTFile(const std::string& txtName)
+{
+
 }

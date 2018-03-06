@@ -83,6 +83,11 @@ class MidiEvent: public Event
 {
     public:
         MidiEvent() {}
+        MidiEvent(unsigned char Type, size_t DeltaTime, int V1, int V2)
+        {
+            baseType = 0, size = 2;
+            type = Type, deltaTime = DeltaTime, v1 = V1, v2 = V2;
+        }
         ~MidiEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
@@ -102,7 +107,7 @@ class SysexEvent: public Event
 class HeaderChunk
 {
     private:
-        std::string chunkID;
+        std::string chunkID = "MThd";
         size_t chunkSize = 0;   //length: 6
         size_t format = 0;      //format: 0, 1, 2
         size_t tracksNumber = 0;
@@ -117,7 +122,7 @@ class HeaderChunk
 class TrackChunk
 {
     private:
-        std::string chunkID;
+        std::string chunkID = "MTrk";
         size_t chunkSize = 0;
         std::vector<Event*> Events;
     public:
@@ -126,6 +131,7 @@ class TrackChunk
         void importChunk(const std::string& midistr, size_t& offset);
         void exportChunk(std::string& midistr);
         void exportChunk2XML(std::ofstream& midifp, size_t trackNumber);
+        void importMidiTXTFile(const std::string& txtName);
 };
 
 class MidiFile
@@ -140,6 +146,10 @@ class MidiFile
         void importMidiFile(const std::string& fileName);
         void exportMidiFile(const std::string& fileName);
         void exportXMLFile(const std::string& fileName);
+        
+        // import/export the notes information from/to a text file
+        void importMidiTXTFile(const std::string& txtName);
+        void exportMidiTXTFile(const std::string& txtName);
 };
 
 #endif
