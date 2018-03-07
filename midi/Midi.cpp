@@ -572,6 +572,8 @@ void TrackChunk::importMidiTXTFile(const std::string& txtName)
     if (!midifp) {
         throw std::runtime_error("Could not open " + txtName + "for writing.\n");
     }
+
+
     // import midi event data from txt file
     int lastTime = 0;
     int noteChannel = 0;
@@ -619,7 +621,6 @@ void MidiFile::importMidiFile(const std::string& fileName)
             trackChunk->importChunk(midistr, offset);
             trackChunks.push_back(trackChunk);
         }
-
     } catch (const std::exception& e) {
         std::cerr << fileName << " " << e.what();
     }
@@ -677,15 +678,22 @@ void MidiFile::exportXMLFile(const std::string& fileName)
 
 void MidiFile::importMidiTXTFile(const std::string& midiTxt)
 {
-    if(trackChunks.size())
-    {
-        throw std::runtime_error("Create another MidiFile object for importing.\n");
+    try {
+        if(trackChunks.size())
+        {
+            throw std::runtime_error("Create another MidiFile object for importing.\n");
+        }
+
+        //HeaderChunk: default setting
+
+        //TrackChunk
+        TrackChunk *trackChunk = new TrackChunk();
+        trackChunk->importMidiTXTFile(midiTxt);
+        trackChunks.push_back(trackChunk);
+
+    } catch (const std::exception& e) {
+        std::cerr << midiTxt << " " << e.what();
     }
-
-
-
-
-
 }
 
 void MidiFile::exportMidiTXTFile(const std::string& txtName)

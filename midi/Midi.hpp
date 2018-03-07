@@ -77,6 +77,10 @@ class MetaEvent: public Event
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
         void exportEvent2XML(std::ofstream& midifp);
+
+        void setMetaTempo(int tempo); // 0x51
+        void setTimeSignature(int numer, int denom, int interval); // 0x58
+        void setKeySignature(int sf, int mi); // 0x59
 };
 
 class MidiEvent: public Event
@@ -108,10 +112,10 @@ class HeaderChunk
 {
     private:
         std::string chunkID = "MThd";
-        size_t chunkSize = 0;   //length: 6
-        size_t format = 0;      //format: 0, 1, 2
+        size_t chunkSize = 6;   //length: 6
+        size_t format = 0;      //format: 0, 1, 2. Default 0: single track
         size_t tracksNumber = 0;
-        size_t deltaTimeTicks = 0;
+        size_t deltaTimeTicks = 960;
     public:
         size_t getTracksNumber() { return tracksNumber; }
         void importChunk(const std::string& midistr, size_t& offset);
