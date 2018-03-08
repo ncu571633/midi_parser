@@ -1,10 +1,11 @@
 #include "Midi.hpp"
 #include "Music.hpp"
 
-#include <iostream>
-#include <sstream>
 #include <cerrno>
 #include <cstring> // strerror
+#include <iostream>
+#include <cmath> // log
+#include <sstream>
 
 int MidiUtility::getNBitsNumber(const std::string &midistr, size_t& offset, int bits)
 {
@@ -344,6 +345,43 @@ void MetaEvent::exportEvent2XML(std::ofstream& midifp)
     midifp << "></MetaEvent>\n";
 }
 
+void MetaEvent::setContent(unsigned char type, std::string c) // 0x51
+{
+    type = type;
+    content = c;
+}
+
+void MetaEvent::setTempo(int tempo) // 0x51
+{
+    type = 0x51;
+    v1 = (int) (60.0 * 1000000 / tempo); //convert second to microsecond
+    size = 3;
+}
+
+void MetaEvent::setSMPTEOffset(int hour, int minute, int second, int frame, int subframe) // 0x54
+{
+    type = 0x54;
+    v1 = hour, v2 = minute, v3 = second, v4 = frame, v5 = subframe;
+    size = 5;
+}
+
+void MetaEvent::setTimeSignature(int numer, int denom, int interval) // 0x58
+{
+    type = 0x58;
+    v1 = numer;
+    v2 = (int)(log(denom) / log(2) + 0.5);
+    v3 = numer * interval /(16*4);
+	v4 = interval / (16*3);
+    size = 4;
+}
+
+void MetaEvent::setKeySignature(int sf, int mi) // 0x59
+{
+    type = 0x59;
+    v1 = sf, v2 = mi;
+    size = 2;
+}
+
 //8-E
 void MidiEvent::importEvent(const std::string& midistr, size_t& offset)
 {
@@ -452,6 +490,98 @@ void MidiEvent::exportEvent2XML(std::ofstream& midifp)
     midifp << "></MidiEvent>\n";
 }
 
+void MidiEvent::importEventFromTXT(const std::string& midistr, int noteChannel, int& lastTime)
+{
+    std::string time, noteType, noteNumber, noteVelocity;
+    std::istringstream ls(midistr);
+    ls >> time;
+    ls >> noteType;
+    ls >> noteNumber;
+    ls >> noteVelocity;
+    if (stoi(noteType)) { // 1 on
+        setNoteOn(stoi(time)-lastTime, noteChannel, stoi(noteNumber), stoi(noteVelocity)); // 9
+    } else {
+        setNoteOff(stoi(time)-lastTime, noteChannel, stoi(noteNumber), stoi(noteVelocity)); // 8 
+    }
+    lastTime = stoi(time);
+}
+
+void MidiEvent::exportEvent2TXT(std::ofstream& midifp)
+{
+
+}
+
+void MidiEvent::setEvent(unsigned char Type, size_t DeltaTime, int noteChannel, int V1, int V2)
+{
+    baseType = (Type<<4) + noteChannel;
+    type = Type;
+    deltaTime = DeltaTime;
+    v1 = V1;
+    v2 = V2;
+    switch(type)
+    {
+        case 8:
+        case 9:
+        case 0xA:
+        case 0xB:
+        case 0xE:
+            size += 3;
+            break;
+        case 0xC:
+        case 0xD:
+            size += 2;
+            break;
+        default:
+            std::cerr << "Wrong midi type.\n";
+    }
+}
+
+void MidiEvent::setNoteOff(size_t deltaTime, int noteChannel, int noteNumber, int velocity) // 8
+{
+    setEvent(8, deltaTime, noteChannel, noteNumber, velocity);
+}
+
+void MidiEvent::setNoteOn(size_t deltaTime, int noteChannel, int noteNumber, int velocity) // 9
+{
+    setEvent(9, deltaTime, noteChannel, noteNumber, velocity);
+}
+    
+void MidiEvent::setKeyAfterTouch(int noteChannel, int noteNumber, int velocity) // A
+{
+    setEvent(0xA, 0, noteChannel, noteNumber, velocity);
+}
+
+void MidiEvent::setControlChange(int noteChannel, int controllerNumber, int newValue) // B
+{
+    setEvent(0xB, 0, noteChannel, controllerNumber, newValue);
+}
+
+void MidiEvent::setProgramChange(int noteChannel, int newProgramNumber) // C
+{
+    setEvent(0xC, 0, noteChannel, newProgramNumber, 0);
+}
+
+void MidiEvent::setChannelAfterTouch(int noteChannel, int channelNumber) // D
+{
+    setEvent(0xD, 0, noteChannel, channelNumber, 0);
+}
+
+void MidiEvent::setPitchWheel(int NoteChannel, int pitch) //E
+{
+    if (pitch>8191 || pitch<-8192)
+    {
+        std::cerr << "Wrong Pitch" << pitch << size;
+    }
+	pitch = pitch - (-8192);
+    setEvent(0xE, 0, NoteChannel, pitch%128, pitch/128);
+}
+
+void MidiEvent::setSoundVolume(int noteChannel, int volume)
+{
+    setControlChange(noteChannel, 7, volume>>8);
+	setControlChange(noteChannel, 39, volume&0xff);
+}
+
 void SysexEvent::importEvent(const std::string& midistr, size_t& offset)
 {
     baseType = midistr[offset++];
@@ -512,7 +642,7 @@ void HeaderChunk::exportChunk(std::string& midistr)
     MidiUtility::writeNBitsNumber(midistr, deltaTimeTicks, 2);	//Delta-time ticks per quarter note
 }
 
-void HeaderChunk::exportChunk2XML(std::ofstream& midifp)
+void HeaderChunk::exportChunk2XML(std::ofstream& midifp, size_t trackNumber)
 {
     midifp << "<HeaderChunk>\n";
     midifp << "Format Type: " << format << "\n";
@@ -566,29 +696,30 @@ void TrackChunk::exportChunk2XML(std::ofstream& midifp, size_t trackNumber)
     midifp << "</TrackChunk>\n";
 }
 
-void TrackChunk::importMidiTXTFile(const std::string& txtName)
+void TrackChunk::importChunkFromTXT(const std::string& txtName)
 {
-    std::ifstream midifp(txtName);
+    std::ifstream midifp(txtName, std::ifstream::in);
     if (!midifp) {
         throw std::runtime_error("Could not open " + txtName + "for writing.\n");
     }
 
-
     // import midi event data from txt file
     int lastTime = 0;
     int noteChannel = 0;
-    std::string time, noteType, noteNumber, noteVelocity;
     std::string line;
     while (std::getline(midifp,line)) {
-        std::istringstream ls(line);
-        ls >> time;
-        ls >> noteType;
-        ls >> noteNumber;
-        ls >> noteVelocity;
-        
-        Events.push_back(new MidiEvent(stoi(noteType)+8, stoi(time)-lastTime, 
-                stoi(noteNumber), stoi(noteVelocity)));
-        lastTime = stoi(time);
+        std::cout << line << "\n";
+        MidiEvent* e = new MidiEvent();
+        e->importEventFromTXT(line, noteChannel, lastTime);
+        Events.push_back(e);
+    }
+}
+
+void TrackChunk::exportChunk2TXT(std::ofstream& midifp)
+{
+    for(size_t i=0; i<Events.size(); i++)
+    {
+        Events[i]->exportEvent2TXT(midifp);
     }
 }
 
@@ -676,7 +807,7 @@ void MidiFile::exportXMLFile(const std::string& fileName)
     }
 }
 
-void MidiFile::importMidiTXTFile(const std::string& midiTxt)
+void MidiFile::importMidiTXT(const std::string& midiTxt)
 {
     try {
         if(trackChunks.size())
@@ -688,7 +819,7 @@ void MidiFile::importMidiTXTFile(const std::string& midiTxt)
 
         //TrackChunk
         TrackChunk *trackChunk = new TrackChunk();
-        trackChunk->importMidiTXTFile(midiTxt);
+        trackChunk->importChunkFromTXT(midiTxt);
         trackChunks.push_back(trackChunk);
 
     } catch (const std::exception& e) {
@@ -696,7 +827,22 @@ void MidiFile::importMidiTXTFile(const std::string& midiTxt)
     }
 }
 
-void MidiFile::exportMidiTXTFile(const std::string& txtName)
+void MidiFile::exportMidiTXT(const std::string& txtName)
 {
+    try {
+        // empty MidiFile
+        if (!trackChunks.size()) {
+            throw std::runtime_error("Export empty midiFile\n");
+        }
 
+        std::ofstream midifp(txtName);
+        if (!midifp) {
+            throw std::runtime_error("Could not open " + txtName + " for writing.\n");
+        }
+
+        trackChunks[0]->exportChunk2TXT(midifp);
+
+    } catch (const std::exception& e) {
+        std::cerr << txtName << " " << e.what();
+    }
 }

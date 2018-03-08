@@ -37,13 +37,11 @@ class MidiUtility
 /********************************************/
 /*******Midi Structure  *********************/
 /********************************************/
-//
 //  MidiFile
 //      HeadChunk
 //      TrackChunk
 //          MetaEvent
 //          MidiEvent
-
 class Event
 {
     protected:
@@ -60,9 +58,10 @@ class Event
         inline size_t getSize() { return size; }
         inline void setDeltaTime(size_t d) { deltaTime = d; }
         
-        virtual void importEvent(const std::string& midistr, size_t& offset) {}
+        virtual void importEvent(const std::string& midistr, size_t& offset) = 0; 
         virtual void exportEvent(std::string& midistr) {}
         virtual void exportEvent2XML(std::ofstream& midifp) {}
+        virtual void exportEvent2TXT(std::ofstream& midifp) {}
 };
 
 class MetaEvent: public Event
@@ -72,30 +71,43 @@ class MetaEvent: public Event
         int v4 = -1; 
         int v5 = -1; 
     public:
-        MetaEvent() {}
+        MetaEvent() {
+            baseType = 0xff;
+        }
         ~MetaEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
         void exportEvent2XML(std::ofstream& midifp);
 
-        void setMetaTempo(int tempo); // 0x51
+        void setContent(unsigned char type, std::string c);
+        void setTempo(int tempo); // 0x51
+        void setSMPTEOffset(int hour, int minute, int second, int frame, int subframe); // 0x54
         void setTimeSignature(int numer, int denom, int interval); // 0x58
         void setKeySignature(int sf, int mi); // 0x59
 };
 
 class MidiEvent: public Event
 {
+    private:
+        void setEvent(unsigned char Type, size_t DeltaTime, int noteChannel, int V1, int V2);
     public:
         MidiEvent() {}
-        MidiEvent(unsigned char Type, size_t DeltaTime, int V1, int V2)
-        {
-            baseType = 0, size = 2;
-            type = Type, deltaTime = DeltaTime, v1 = V1, v2 = V2;
-        }
         ~MidiEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
         void exportEvent2XML(std::ofstream& midifp);
+        
+        void importEventFromTXT(const std::string& midistr, int noteChannel, int& lastTime);
+        void exportEvent2TXT(std::ofstream& midifp);
+
+        void setNoteOff(size_t deltaTime, int noteChannel, int noteNumber, int velocity); // 8
+        void setNoteOn(size_t deltaTime, int noteChannel, int noteNumber, int velocity); // 9
+        void setKeyAfterTouch(int noteChannel, int noteNumber, int velocity); // A
+        void setControlChange(int noteChannel, int controllerNumber, int newValue); // B
+        void setProgramChange(int noteChannel, int newProgramNumber); // C
+        void setChannelAfterTouch(int noteChannel, int channelNumber); // D
+        void setPitchWheel(int NoteChannel, int pitch); //E
+        void setSoundVolume(int noteChannel, int volume);
 };
 
 class SysexEvent: public Event
@@ -104,38 +116,55 @@ class SysexEvent: public Event
         SysexEvent() {}
         ~SysexEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
-        void exportEvent(std::string& midistr) {}
-        void exportEvent2XML(std::ofstream& midifp) {}
 };
 
-class HeaderChunk
+class Chunk
+{
+    protected:
+        std::string chunkID;
+        size_t chunkSize = 0;
+    public:
+        Chunk() {}
+        virtual ~Chunk() {}
+        virtual void importChunk(const std::string& midistr, size_t& offset) = 0;
+        virtual void exportChunk(std::string& midistr) = 0;
+        virtual void exportChunk2XML(std::ofstream& midifp, size_t trackNumber=0) = 0;
+};
+
+class HeaderChunk : public Chunk
 {
     private:
-        std::string chunkID = "MThd";
-        size_t chunkSize = 6;   //length: 6
         size_t format = 0;      //format: 0, 1, 2. Default 0: single track
-        size_t tracksNumber = 0;
+        size_t tracksNumber = 1;
         size_t deltaTimeTicks = 960;
     public:
-        size_t getTracksNumber() { return tracksNumber; }
+        HeaderChunk() {
+            chunkID = "MThd";
+            chunkSize = 6;  // length 6
+        }
         void importChunk(const std::string& midistr, size_t& offset);
         void exportChunk(std::string& midistr);
-        void exportChunk2XML(std::ofstream& midifp);
+        void exportChunk2XML(std::ofstream& midifp, size_t trackNumber=0);
+        
+        size_t getTracksNumber() { return tracksNumber; }
 };
 
-class TrackChunk
+class TrackChunk : public Chunk
 {
     private:
-        std::string chunkID = "MTrk";
-        size_t chunkSize = 0;
         std::vector<Event*> Events;
     public:
+        TrackChunk() {
+            chunkID = "MTrk";
+        }
         ~TrackChunk();
-        Event* importEvent(const std::string& midistr, size_t& offset);
         void importChunk(const std::string& midistr, size_t& offset);
         void exportChunk(std::string& midistr);
         void exportChunk2XML(std::ofstream& midifp, size_t trackNumber);
-        void importMidiTXTFile(const std::string& txtName);
+       
+        Event* importEvent(const std::string& midistr, size_t& offset);
+        void importChunkFromTXT(const std::string& midistr);
+        void exportChunk2TXT(std::ofstream& midifp);
 };
 
 class MidiFile
@@ -143,7 +172,6 @@ class MidiFile
     private:
         HeaderChunk headerChunk;                //header chunk
         std::vector<TrackChunk*> trackChunks;   //track chunk list
-        
     public:
         ~MidiFile();
         
@@ -152,8 +180,8 @@ class MidiFile
         void exportXMLFile(const std::string& fileName);
         
         // import/export the notes information from/to a text file
-        void importMidiTXTFile(const std::string& txtName);
-        void exportMidiTXTFile(const std::string& txtName);
+        void importMidiTXT(const std::string& txtName);
+        void exportMidiTXT(const std::string& txtName);
 };
 
 #endif
