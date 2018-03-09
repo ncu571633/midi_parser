@@ -53,7 +53,6 @@ class Event
         int v2 = -1; 
         std::string content;
     public:
-        Event() {}
         virtual ~Event() {}
         inline size_t getSize() { return size; }
         inline void setDeltaTime(size_t d) { deltaTime = d; }
@@ -74,7 +73,6 @@ class MetaEvent: public Event
         MetaEvent() {
             baseType = 0xff;
         }
-        ~MetaEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
         void exportEvent2XML(std::ofstream& midifp);
@@ -91,8 +89,6 @@ class MidiEvent: public Event
     private:
         void setEvent(unsigned char Type, size_t DeltaTime, int noteChannel, int V1, int V2);
     public:
-        MidiEvent() {}
-        ~MidiEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
         void exportEvent2XML(std::ofstream& midifp);
@@ -113,8 +109,6 @@ class MidiEvent: public Event
 class SysexEvent: public Event
 {
     public:
-        SysexEvent() {}
-        ~SysexEvent() {}
         void importEvent(const std::string& midistr, size_t& offset);
 };
 
@@ -124,7 +118,6 @@ class Chunk
         std::string chunkID;
         size_t chunkSize = 0;
     public:
-        Chunk() {}
         virtual ~Chunk() {}
         virtual void importChunk(const std::string& midistr, size_t& offset) = 0;
         virtual void exportChunk(std::string& midistr) = 0;

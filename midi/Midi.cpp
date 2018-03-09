@@ -285,25 +285,16 @@ void MetaEvent::exportEvent2XML(std::ofstream& midifp)
             break;
         case 0x59: // KeySignature
             midifp << MidiUtility::addXMLAttribute("Name", "KeySignature");
-            switch (v1) {
-                case -7:
-                    midifp << MidiUtility::addXMLAttribute("Fifths", "7flats");
-                    break;
-                case -1:
-                    midifp << MidiUtility::addXMLAttribute("Fifths", "1flats");
-                    break;
-                case 0:
-                    midifp << MidiUtility::addXMLAttribute("Fifths", "KeyOfC");
-                    break;
-                case 1:
-                    midifp << MidiUtility::addXMLAttribute("Fifths", "1Sharp");
-                    break;
-                case 7:
-                    midifp << MidiUtility::addXMLAttribute("Fifths", "7Sharps");
-                    break;
-                default:
-                    std::cerr << "Invalid Fifths\n";
-                    break;
+            if (-7<=v1 && v1<0) {
+                std::string str = std::to_string(-v1)+"Flats";
+                midifp << MidiUtility::addXMLAttribute("Fifths", str);
+            } else if(v1==0){
+                midifp << MidiUtility::addXMLAttribute("Fifths", "KeyOfC");
+            } else if(0<v1 && v1<=7) {
+                std::string str = std::to_string(v1)+"Sharp";
+                midifp << MidiUtility::addXMLAttribute("Fifths", str);
+            } else {
+                std::cerr << "MetaEvent 0x59 KeySignature: Invalid Fifths " << v1 << "\n";
             }
             switch (v2) {
                 case 0:
@@ -313,7 +304,7 @@ void MetaEvent::exportEvent2XML(std::ofstream& midifp)
                     midifp << MidiUtility::addXMLAttribute("Mode", "MinorKey");
                     break;
                 default:
-                    std::cerr << "Invalid mode\n";
+                    std::cerr << "MetaEvent 0x59 KeySignature: Invalid mode " << v2 << "\n";
                     break;
             }
             break;
@@ -494,14 +485,11 @@ void MidiEvent::importEventFromTXT(const std::string& midistr, int noteChannel, 
 {
     std::string time, noteType, noteNumber, noteVelocity;
     std::istringstream ls(midistr);
-    ls >> time;
-    ls >> noteType;
-    ls >> noteNumber;
-    ls >> noteVelocity;
+    ls >> time >> noteType >> noteNumber >> noteVelocity;
     if (stoi(noteType)) { // 1 on
-        setNoteOn(stoi(time)-lastTime, noteChannel, stoi(noteNumber), stoi(noteVelocity)); // 9
+        setNoteOn(stoi(time)-lastTime, noteChannel, stoi(noteNumber, nullptr, 16), stoi(noteVelocity, nullptr, 16)); // 9
     } else {
-        setNoteOff(stoi(time)-lastTime, noteChannel, stoi(noteNumber), stoi(noteVelocity)); // 8 
+        setNoteOff(stoi(time)-lastTime, noteChannel, stoi(noteNumber, nullptr, 16), stoi(noteVelocity, nullptr, 16)); // 8 
     }
     lastTime = stoi(time);
 }
@@ -576,6 +564,7 @@ void MidiEvent::setPitchWheel(int NoteChannel, int pitch) //E
     setEvent(0xE, 0, NoteChannel, pitch%128, pitch/128);
 }
 
+//volume range: 0 - 0xFFFF
 void MidiEvent::setSoundVolume(int noteChannel, int volume)
 {
     setControlChange(noteChannel, 7, volume>>8);
@@ -703,12 +692,34 @@ void TrackChunk::importChunkFromTXT(const std::string& txtName)
         throw std::runtime_error("Could not open " + txtName + "for writing.\n");
     }
 
+    // set up meta event
+    int deltaTimeTicks = 500000;
+    MetaEvent *e1 = new MetaEvent();
+    e1->setTempo(deltaTimeTicks);
+    Events.push_back(e1);
+
+    e1 = new MetaEvent();
+    e1->setTimeSignature(4, 4, deltaTimeTicks); // 4/4 C Major
+    Events.push_back(e1);
+
+    e1 = new MetaEvent();
+    e1->setKeySignature(3, 1);
+    Events.push_back(e1);
+
+    MidiEvent *e2 = new MidiEvent();
+    e2->setProgramChange(0, 0x21);
+    Events.push_back(e2);
+
+    e2 = new MidiEvent();
+    e2->setControlChange(0, 0x7, 0x7f);
+    //e2->setSoundVolume(0, 0);
+    Events.push_back(e2);
+    
     // import midi event data from txt file
     int lastTime = 0;
     int noteChannel = 0;
     std::string line;
     while (std::getline(midifp,line)) {
-        std::cout << line << "\n";
         MidiEvent* e = new MidiEvent();
         e->importEventFromTXT(line, noteChannel, lastTime);
         Events.push_back(e);

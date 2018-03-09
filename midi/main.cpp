@@ -12,6 +12,7 @@ int main()
    
     MidiFile midi2;
     midi2.importMidiTXT("midi.txt");
+    midi2.exportMidiFile("midi.mid");
     midi2.exportXMLFile("midi.xml");
     midi2.exportMidiTXT("midi2.txt");
 
