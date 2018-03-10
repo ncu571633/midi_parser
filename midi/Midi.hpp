@@ -60,7 +60,7 @@ class Event
         virtual void importEvent(const std::string& midistr, size_t& offset) = 0; 
         virtual void exportEvent(std::string& midistr) {}
         virtual void exportEvent2XML(std::ofstream& midifp) {}
-        virtual void exportEvent2TXT(std::ofstream& midifp) {}
+        virtual void exportEvent2TXT(std::ofstream& midifp, size_t& time) {}
 };
 
 class MetaEvent: public Event
@@ -94,7 +94,7 @@ class MidiEvent: public Event
         void exportEvent2XML(std::ofstream& midifp);
         
         void importEventFromTXT(const std::string& midistr, int noteChannel, int& lastTime);
-        void exportEvent2TXT(std::ofstream& midifp);
+        void exportEvent2TXT(std::ofstream& midifp, size_t& time);
 
         void setNoteOff(size_t deltaTime, int noteChannel, int noteNumber, int velocity); // 8
         void setNoteOn(size_t deltaTime, int noteChannel, int noteNumber, int velocity); // 9
@@ -157,7 +157,7 @@ class TrackChunk : public Chunk
        
         Event* importEvent(const std::string& midistr, size_t& offset);
         void importChunkFromTXT(const std::string& midistr);
-        void exportChunk2TXT(std::ofstream& midifp);
+        void exportChunk2TXT(const std::string& midifp);
 };
 
 class MidiFile

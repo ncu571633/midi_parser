@@ -216,7 +216,6 @@ void MetaEvent::exportEvent(std::string& midistr)
 
     // string
     std::string str;
-    
     if(!content.empty()) 
     {
         str = content;
@@ -340,6 +339,7 @@ void MetaEvent::setContent(unsigned char type, std::string c) // 0x51
 {
     type = type;
     content = c;
+    size = content.size();
 }
 
 void MetaEvent::setTempo(int tempo) // 0x51
@@ -430,7 +430,7 @@ void MidiEvent::exportEvent2XML(std::ofstream& midifp)
     int channelNumber = baseType&0x0f;
     midifp << "\t<MidiEvent" << MidiUtility::addXMLAttribute("deltaTime", deltaTime)
                              << MidiUtility::addXMLAttribute("ChannelNumber", channelNumber);
-                                
+
     switch(type)
     {
         case 0x8:
@@ -483,8 +483,8 @@ void MidiEvent::exportEvent2XML(std::ofstream& midifp)
 
 void MidiEvent::importEventFromTXT(const std::string& midistr, int noteChannel, int& lastTime)
 {
-    std::string time, noteType, noteNumber, noteVelocity;
     std::istringstream ls(midistr);
+    std::string time, noteType, noteNumber, noteVelocity;
     ls >> time >> noteType >> noteNumber >> noteVelocity;
     if (stoi(noteType)) { // 1 on
         setNoteOn(stoi(time)-lastTime, noteChannel, stoi(noteNumber, nullptr, 16), stoi(noteVelocity, nullptr, 16)); // 9
@@ -494,9 +494,13 @@ void MidiEvent::importEventFromTXT(const std::string& midistr, int noteChannel, 
     lastTime = stoi(time);
 }
 
-void MidiEvent::exportEvent2TXT(std::ofstream& midifp)
+void MidiEvent::exportEvent2TXT(std::ofstream& midifp, size_t& time)
 {
-
+    if (type == 0x8 || type == 0x9) {
+        time += deltaTime;
+        midifp << std::dec << time << " " << type-8 << " "
+            << std::hex << v1 << " " << v2 << "\n";
+    }
 }
 
 void MidiEvent::setEvent(unsigned char Type, size_t DeltaTime, int noteChannel, int V1, int V2)
@@ -504,8 +508,7 @@ void MidiEvent::setEvent(unsigned char Type, size_t DeltaTime, int noteChannel, 
     baseType = (Type<<4) + noteChannel;
     type = Type;
     deltaTime = DeltaTime;
-    v1 = V1;
-    v2 = V2;
+    v1 = V1, v2 = V2;
     switch(type)
     {
         case 8:
@@ -524,40 +527,33 @@ void MidiEvent::setEvent(unsigned char Type, size_t DeltaTime, int noteChannel, 
     }
 }
 
-void MidiEvent::setNoteOff(size_t deltaTime, int noteChannel, int noteNumber, int velocity) // 8
-{
+void MidiEvent::setNoteOff(size_t deltaTime, int noteChannel, int noteNumber, int velocity) { // 8
     setEvent(8, deltaTime, noteChannel, noteNumber, velocity);
 }
 
-void MidiEvent::setNoteOn(size_t deltaTime, int noteChannel, int noteNumber, int velocity) // 9
-{
+void MidiEvent::setNoteOn(size_t deltaTime, int noteChannel, int noteNumber, int velocity) { // 9
     setEvent(9, deltaTime, noteChannel, noteNumber, velocity);
 }
     
-void MidiEvent::setKeyAfterTouch(int noteChannel, int noteNumber, int velocity) // A
-{
+void MidiEvent::setKeyAfterTouch(int noteChannel, int noteNumber, int velocity) { // A
     setEvent(0xA, 0, noteChannel, noteNumber, velocity);
 }
 
-void MidiEvent::setControlChange(int noteChannel, int controllerNumber, int newValue) // B
-{
+void MidiEvent::setControlChange(int noteChannel, int controllerNumber, int newValue) { // B
     setEvent(0xB, 0, noteChannel, controllerNumber, newValue);
 }
 
-void MidiEvent::setProgramChange(int noteChannel, int newProgramNumber) // C
-{
+void MidiEvent::setProgramChange(int noteChannel, int newProgramNumber) { // C
     setEvent(0xC, 0, noteChannel, newProgramNumber, 0);
 }
 
-void MidiEvent::setChannelAfterTouch(int noteChannel, int channelNumber) // D
-{
+void MidiEvent::setChannelAfterTouch(int noteChannel, int channelNumber) { // D
     setEvent(0xD, 0, noteChannel, channelNumber, 0);
 }
 
 void MidiEvent::setPitchWheel(int NoteChannel, int pitch) //E
 {
-    if (pitch>8191 || pitch<-8192)
-    {
+    if (pitch>8191 || pitch<-8192) {
         std::cerr << "Wrong Pitch" << pitch << size;
     }
 	pitch = pitch - (-8192);
@@ -565,8 +561,7 @@ void MidiEvent::setPitchWheel(int NoteChannel, int pitch) //E
 }
 
 //volume range: 0 - 0xFFFF
-void MidiEvent::setSoundVolume(int noteChannel, int volume)
-{
+void MidiEvent::setSoundVolume(int noteChannel, int volume) {
     setControlChange(noteChannel, 7, volume>>8);
 	setControlChange(noteChannel, 39, volume&0xff);
 }
@@ -633,11 +628,11 @@ void HeaderChunk::exportChunk(std::string& midistr)
 
 void HeaderChunk::exportChunk2XML(std::ofstream& midifp, size_t trackNumber)
 {
-    midifp << "<HeaderChunk>\n";
-    midifp << "Format Type: " << format << "\n";
-    midifp << "Track Number: " << tracksNumber << "\n";
-    midifp << "DeltaTime: " << deltaTimeTicks << "\n";
-    midifp << "</HeaderChunk>\n";
+    midifp << "<HeaderChunk>\n"
+        << "Format Type: " << format << "\n"
+        << "Track Number: " << tracksNumber << "\n"
+        << "DeltaTime: " << deltaTimeTicks << "\n"
+        << "</HeaderChunk>\n";
 }
 
 void TrackChunk::importChunk(const std::string& midistr, size_t& offset)
@@ -667,8 +662,7 @@ void TrackChunk::exportChunk(std::string& midistr)
     MidiUtility::writeString(midistr, chunkID);		//midi head: MTrk
 
     std::string str;
-    for (size_t i=0; i<Events.size(); i++)
-    {
+    for (size_t i=0; i<Events.size(); i++) {
         Events[i]->exportEvent(str);
     }
     MidiUtility::writeNBitsNumber(midistr, str.size(), 4);	//chunk size
@@ -678,8 +672,7 @@ void TrackChunk::exportChunk(std::string& midistr)
 void TrackChunk::exportChunk2XML(std::ofstream& midifp, size_t trackNumber)
 {
     midifp << "<TrackChunk" << MidiUtility::addXMLAttribute("TrackNumber", trackNumber) << ">\n";
-    for (size_t i=0; i<Events.size(); i++)
-    {
+    for (size_t i=0; i<Events.size(); i++) {
         Events[i]->exportEvent2XML(midifp);
     }
     midifp << "</TrackChunk>\n";
@@ -726,11 +719,15 @@ void TrackChunk::importChunkFromTXT(const std::string& txtName)
     }
 }
 
-void TrackChunk::exportChunk2TXT(std::ofstream& midifp)
+void TrackChunk::exportChunk2TXT(const std::string& txtName)
 {
-    for(size_t i=0; i<Events.size(); i++)
-    {
-        Events[i]->exportEvent2TXT(midifp);
+    std::ofstream midifp(txtName);
+    if (!midifp) {
+        throw std::runtime_error("Could not open " + txtName + " for writing.\n");
+    }
+
+    for(size_t i=0, time = 0; i<Events.size(); i++) {
+        Events[i]->exportEvent2TXT(midifp, time);
     }
 }
 
@@ -745,8 +742,7 @@ void MidiFile::importMidiFile(const std::string& fileName)
         std::string midistr;
         {
             std::ifstream midifp(fileName.c_str(), std::ios::in | std::ios::binary);
-            if(!midifp)
-            {
+            if(!midifp) {
                 throw std::runtime_error(std::strerror(errno));
             }
             midistr = std::string((std::istreambuf_iterator<char>(midifp)), std::istreambuf_iterator<char>());
@@ -776,8 +772,7 @@ void MidiFile::exportMidiFile(const std::string& fileName)
     headerChunk.exportChunk(midistr);
 
     //write midi file track chunks
-    for (size_t i=0; i<headerChunk.getTracksNumber(); i++)
-    {
+    for (size_t i=0; i<headerChunk.getTracksNumber(); i++) {
         trackChunks[i]->exportChunk(midistr);
     }
 
@@ -806,8 +801,7 @@ void MidiFile::exportXMLFile(const std::string& fileName)
         midifp << "<MIDIFile>\n";
 
         headerChunk.exportChunk2XML(midifp);
-        for (size_t i=0; i<headerChunk.getTracksNumber(); i++)
-        {
+        for (size_t i=0; i<headerChunk.getTracksNumber(); i++) {
             trackChunks[i]->exportChunk2XML(midifp, i);
         }
 
@@ -821,8 +815,7 @@ void MidiFile::exportXMLFile(const std::string& fileName)
 void MidiFile::importMidiTXT(const std::string& midiTxt)
 {
     try {
-        if(trackChunks.size())
-        {
+        if(trackChunks.size()) {
             throw std::runtime_error("Create another MidiFile object for importing.\n");
         }
 
@@ -846,13 +839,7 @@ void MidiFile::exportMidiTXT(const std::string& txtName)
             throw std::runtime_error("Export empty midiFile\n");
         }
 
-        std::ofstream midifp(txtName);
-        if (!midifp) {
-            throw std::runtime_error("Could not open " + txtName + " for writing.\n");
-        }
-
-        trackChunks[0]->exportChunk2TXT(midifp);
-
+        trackChunks[0]->exportChunk2TXT(txtName);
     } catch (const std::exception& e) {
         std::cerr << txtName << " " << e.what();
     }
