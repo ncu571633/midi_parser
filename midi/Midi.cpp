@@ -115,6 +115,13 @@ MidiFile::~MidiFile()
     }
 }
 
+bool Event::compare(EventType t, int vv1, int vv2, int vv3, int vv4, int vv5)
+{
+    if(t!=eventType || v1!=vv1 || v2!=vv2)
+        return false;
+    return true;
+}
+
 //ff -> meta event
 void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
 {
@@ -373,6 +380,13 @@ void MetaEvent::setKeySignature(int sf, int mi) // 0x59
     size = 2;
 }
 
+bool MetaEvent::compare(EventType t, int vv1, int vv2, int vv3, int vv4, int vv5)
+{
+    if(!Event::compare(t, vv1, vv2) || v3!=vv3 || v4!=vv4 || v5!=vv5)
+        return false;
+    return true;
+}
+
 //8-E
 void MidiEvent::importEvent(const std::string& midistr, size_t& offset)
 {
@@ -600,6 +614,19 @@ Event* TrackChunk::importEvent(const std::string& midistr, size_t& offset)
     e->importEvent(midistr, offset);
     e->setDeltaTime(deltaTime);
     return e;
+}
+
+bool TrackChunk::deleteEvent(EventType t, int v1, int v2, int v3, int v4, int v5)
+{
+    for(auto it=Events.begin(); it!=Events.end(); it++)
+    {
+        if((*it)->compare(t, v1, v2, v3, v4, v5)) 
+        {
+            Events.erase(it);
+            return true;
+        }
+    }
+    return false;
 }
 
 void HeaderChunk::importChunk(const std::string& midistr, size_t& offset)
@@ -843,4 +870,9 @@ void MidiFile::exportMidiTXT(const std::string& txtName)
     } catch (const std::exception& e) {
         std::cerr << txtName << " " << e.what();
     }
+}
+
+bool MidiFile::deleteTrackEvent(int trackNumber, EventType t, int v1, int v2, int v3, int v4, int v5)
+{
+    return trackChunks[trackNumber]->deleteEvent(t, v1, v2, v3, v4, v5);
 }

@@ -42,6 +42,8 @@ class MidiUtility
 //      TrackChunk
 //          MetaEvent
 //          MidiEvent
+enum class EventType { midiEvent, metaEvent, sysexEvent };
+
 class Event
 {
     protected:
@@ -52,6 +54,7 @@ class Event
         int v1 = -1; 
         int v2 = -1; 
         std::string content;
+        EventType eventType;
     public:
         virtual ~Event() {}
         inline size_t getSize() { return size; }
@@ -61,6 +64,8 @@ class Event
         virtual void exportEvent(std::string& midistr) {}
         virtual void exportEvent2XML(std::ofstream& midifp) {}
         virtual void exportEvent2TXT(std::ofstream& midifp, size_t& time) {}
+
+        virtual bool compare(EventType t, int v1, int v2, int v3=0, int v4=0, int v5=0);
 };
 
 class MetaEvent: public Event
@@ -72,6 +77,7 @@ class MetaEvent: public Event
     public:
         MetaEvent() {
             baseType = 0xff;
+            eventType = EventType::metaEvent;
         }
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
@@ -82,6 +88,8 @@ class MetaEvent: public Event
         void setSMPTEOffset(int hour, int minute, int second, int frame, int subframe); // 0x54
         void setTimeSignature(int numer, int denom, int interval); // 0x58
         void setKeySignature(int sf, int mi); // 0x59
+        
+        bool compare(EventType t, int v1, int v2, int v3, int v4, int v5);
 };
 
 class MidiEvent: public Event
@@ -89,6 +97,9 @@ class MidiEvent: public Event
     private:
         void setEvent(unsigned char Type, size_t DeltaTime, int noteChannel, int V1, int V2);
     public:
+        MidiEvent() {
+            eventType = EventType::midiEvent;
+        }
         void importEvent(const std::string& midistr, size_t& offset);
         void exportEvent(std::string& midistr);
         void exportEvent2XML(std::ofstream& midifp);
@@ -109,6 +120,9 @@ class MidiEvent: public Event
 class SysexEvent: public Event
 {
     public:
+        SysexEvent() {
+            eventType = EventType::sysexEvent;
+        }
         void importEvent(const std::string& midistr, size_t& offset);
 };
 
@@ -158,6 +172,9 @@ class TrackChunk : public Chunk
         Event* importEvent(const std::string& midistr, size_t& offset);
         void importChunkFromTXT(const std::string& midistr);
         void exportChunk2TXT(const std::string& midifp);
+
+        // return true if deletion successful
+        bool deleteEvent(EventType t, int v1, int v2, int v3=0, int v4=0, int v5=0);
 };
 
 class MidiFile
@@ -175,6 +192,8 @@ class MidiFile
         // import/export the notes information from/to a text file
         void importMidiTXT(const std::string& txtName);
         void exportMidiTXT(const std::string& txtName);
+
+        bool deleteTrackEvent(int trackNumber, EventType t, int v1, int v2, int v3=0, int v4=0, int v5=0);
 };
 
 #endif

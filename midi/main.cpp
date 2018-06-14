@@ -16,5 +16,7 @@ int main()
     midi2.exportXMLFile("midi.xml");
     midi2.exportMidiTXT("midi2.txt");
 
+    midi2.deleteTrackEvent(0, EventType::midiEvent, 0x2d, 0x4e);
+    midi2.exportMidiTXT("midi3.txt");
     return 1;
 }
