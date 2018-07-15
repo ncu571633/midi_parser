@@ -1,7 +1,9 @@
 #include "Midi.hpp"
 #include "Music.hpp"
 
-#include "iostream"
+#include <iostream>
+
+using namespace std;
 
 int main()
 {
@@ -16,7 +18,8 @@ int main()
     midi2.exportXMLFile("midi.xml");
     midi2.exportMidiTXT("midi2.txt");
 
-    midi2.deleteTrackEvent(0, EventType::midiEvent, 0x2d, 0x4e);
+    midi2.deleteTrackEvent((size_t)0, EventType::midiEvent, 0x2d, 0x4e);
+    cout<< midi2.editTrackEvent((size_t)0, (size_t)1, EventType::metaEvent, 0, 0) << endl;
     midi2.exportMidiTXT("midi3.txt");
     return 1;
 }

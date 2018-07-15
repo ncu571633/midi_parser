@@ -66,6 +66,7 @@ class Event
         virtual void exportEvent2TXT(std::ofstream& midifp, size_t& time) {}
 
         virtual bool compare(EventType t, int v1, int v2, int v3=0, int v4=0, int v5=0);
+        virtual bool edit(EventType type, int v1, int v2, int v3=0, int v4=0, int v5=0);
 };
 
 class MetaEvent: public Event
@@ -90,6 +91,7 @@ class MetaEvent: public Event
         void setKeySignature(int sf, int mi); // 0x59
         
         bool compare(EventType t, int v1, int v2, int v3, int v4, int v5);
+        bool edit(EventType type, int v1, int v2, int v3=0, int v4=0, int v5=0);
 };
 
 class MidiEvent: public Event
@@ -173,8 +175,9 @@ class TrackChunk : public Chunk
         void importChunkFromTXT(const std::string& midistr);
         void exportChunk2TXT(const std::string& midifp);
 
-        // return true if deletion successful
+        // return true if deletion/Edition successful
         bool deleteEvent(EventType t, int v1, int v2, int v3=0, int v4=0, int v5=0);
+        bool editEvent(size_t eventIndex, EventType type, int v1, int v2, int v3=0, int v4=0, int v5=0);
 };
 
 class MidiFile
@@ -193,7 +196,8 @@ class MidiFile
         void importMidiTXT(const std::string& txtName);
         void exportMidiTXT(const std::string& txtName);
 
-        bool deleteTrackEvent(int trackNumber, EventType t, int v1, int v2, int v3=0, int v4=0, int v5=0);
+        bool deleteTrackEvent(size_t trackIndex, EventType t, int v1, int v2, int v3=0, int v4=0, int v5=0);
+        bool editTrackEvent(size_t trackIndex, size_t eventIndex, EventType t, int v1, int v2, int v3=0, int v4=0, int v5=0);
 };
 
 #endif

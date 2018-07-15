@@ -122,6 +122,14 @@ bool Event::compare(EventType t, int vv1, int vv2, int vv3, int vv4, int vv5)
     return true;
 }
 
+bool Event::edit(EventType t, int vv1, int vv2, int vv3, int vv4, int vv5)
+{
+    if(eventType != t)
+        return false;
+    v1 = vv1, v2 = vv2;
+    return true;
+}
+
 //ff -> meta event
 void MetaEvent::importEvent(const std::string& midistr, size_t& offset)
 {
@@ -387,6 +395,14 @@ bool MetaEvent::compare(EventType t, int vv1, int vv2, int vv3, int vv4, int vv5
     return true;
 }
 
+bool MetaEvent::edit(EventType type, int vv1, int vv2, int vv3, int vv4, int vv5)
+{
+    if(!Event::edit(type, vv1, vv2, vv3, vv4, vv4))
+        return false;
+    v3 = vv3, v4 = vv4, v5 = vv5;
+    return true;
+}
+
 //8-E
 void MidiEvent::importEvent(const std::string& midistr, size_t& offset)
 {
@@ -627,6 +643,13 @@ bool TrackChunk::deleteEvent(EventType t, int v1, int v2, int v3, int v4, int v5
         }
     }
     return false;
+}
+
+bool TrackChunk::editEvent(size_t eventIndex, EventType type, int v1, int v2, int v3, int v4, int v5)
+{
+    if(eventIndex < 0 || Events.size() < eventIndex)
+        return false;
+    return Events[eventIndex]->edit(type, v1, v2, v3, v4, v5);
 }
 
 void HeaderChunk::importChunk(const std::string& midistr, size_t& offset)
@@ -872,7 +895,12 @@ void MidiFile::exportMidiTXT(const std::string& txtName)
     }
 }
 
-bool MidiFile::deleteTrackEvent(int trackNumber, EventType t, int v1, int v2, int v3, int v4, int v5)
+bool MidiFile::deleteTrackEvent(size_t trackIndex, EventType t, int v1, int v2, int v3, int v4, int v5)
 {
-    return trackChunks[trackNumber]->deleteEvent(t, v1, v2, v3, v4, v5);
+    return trackChunks[trackIndex]->deleteEvent(t, v1, v2, v3, v4, v5);
+}
+
+bool MidiFile::editTrackEvent(size_t trackIndex, size_t eventIndex, EventType t, int v1, int v2, int v3, int v4, int v5)
+{
+    return trackChunks[trackIndex]->editEvent(eventIndex, t, v1, v2, v3, v4, v5);
 }
