@@ -8,12 +8,12 @@ using namespace std;
 int main()
 {
     Midi::MidiFile midi;
-    midi.importMidiFile("close.mid");
+    midi.importMidiFile("resource/close.mid");
     midi.exportMidiFile("close1.mid");
     midi.exportXMLFile("close.xml");
    
     Midi::MidiFile midi2;
-    midi2.importMidiTXT("midi.txt");
+    midi2.importMidiTXT("resource/midi.txt");
     midi2.exportMidiFile("midi.mid");
     midi2.exportXMLFile("midi.xml");
     midi2.exportMidiTXT("midi2.txt");

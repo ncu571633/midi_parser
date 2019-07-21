@@ -14,4 +14,4 @@ all: main.o $(objects)
 
 clean:
 	rm -r -f test
-	rm -r -f *.o *.p?m *.mid? *.pdf *.ps *.xml
+	rm -r -f *.o *.p?m *.mid* *.pdf *.ps *.xml *.txt
