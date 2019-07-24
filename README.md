@@ -23,3 +23,5 @@ Only need to use APIs defined in MidiFile class for Midi file importing and expo
 3. void exportXMLFile(const std::string& fileName);
 
 Example see main.cpp
+In Linux, run command below to play midi file:
+    timidity close1.mid 
